@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="refresh" content="10"> <!-- 10초마다 자동 새로고침 -->
+    <title>TG-KITCHEN Display</title>
+    <style>
+        body { font-family: 'Arial', sans-serif; background: #222; color: white; margin: 0; padding: 20px; }
+        h1 { color: #facc15; border-bottom: 2px solid #444; padding-bottom: 10px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; }
+        .order-card { background: #333; border: 2px solid #555; border-radius: 10px; padding: 15px; position: relative; }
+        .order-card.new { border-color: #ef4444; animation: blink 2s infinite; }
+        .header { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 10px; font-size: 1.2rem; }
+        .table-no { color: #38bdf8; }
+        .time { font-size: 0.9rem; color: #9ca3af; }
+        .items { list-style: none; padding: 0; margin: 0; min-height: 100px; }
+        .items li { padding: 5px 0; border-bottom: 1px solid #444; font-size: 1.1rem; }
+        .qty { color: #facc15; font-weight: bold; margin-right: 10px; }
+        .btn-done { width: 100%; padding: 15px; background: #15803d; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1.2rem; font-weight: bold; margin-top: 10px; }
+        .btn-done:hover { background: #166534; }
+        
+        @keyframes blink { 50% { border-color: #222; } }
+    </style>
+</head>
+<body>
+    <h1>👨‍🍳 KITCHEN DISPLAY SYSTEM (Store 1)</h1>
+    <div class="grid" id="orderGrid">
+        <div style="color: #888;">Loading orders...</div>
+    </div>
+
+    <script>
+        const API_BASE = "http://localhost:8001";
+        const STORE_ID = 1;
+
+        async function loadOrders() {
+            try {
+                const res = await fetch(`${API_BASE}/orders/list/${STORE_ID}`);
+                const orders = await res.json();
+                render(orders);
+            } catch(e) {
+                console.error(e);
+            }
+        }
+
+        async function completeOrder(id) {
+            if(!confirm("조리 완료 처리하시겠습니까?")) return;
+            await fetch(`${API_BASE}/orders/${id}/status`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ status: "completed" })
+            });
+            loadOrders(); // Refresh
+        }
+
+        function render(orders) {
+            const container = document.getElementById('orderGrid');
+            if(orders.length === 0) {
+                container.innerHTML = "<div style='padding:20px; color:#666'>No active orders. Waiting...</div>";
+                return;
+            }
+            
+            container.innerHTML = orders.map(o => `
+                <div class="order-card ${o.status === 'PAID' ? 'new' : ''}">
+                    <div class="header">
+                        <span class="table-no">${o.table}</span>
+                        <span class="time">${o.time}</span>
+                    </div>
+                    <ul class="items">
+                        ${o.items.map(i => `<li><span class="qty">${i.qty}</span> ${i.name}</li>`).join('')}
+                    </ul>
+                    <button class="btn-done" onclick="completeOrder('${o.id}')">DONE ✅</button>
+                </div>
+            `).join('');
+        }
+
+        loadOrders();
+    </script>
+</body>
+</html>

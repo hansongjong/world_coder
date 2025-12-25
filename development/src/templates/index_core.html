@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>TG-SYSTEM Enterprise Hub</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: white; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .container { text-align: center; background: #1e293b; padding: 40px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); border: 1px solid #334155; }
+        h1 { color: #38bdf8; margin-bottom: 10px; }
+        p { color: #94a3b8; margin-bottom: 30px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .card { background: #334155; padding: 20px; border-radius: 10px; text-decoration: none; color: white; transition: 0.2s; border: 1px solid #475569; }
+        .card:hover { background: #475569; transform: translateY(-3px); border-color: #38bdf8; }
+        .icon { font-size: 2rem; display: block; margin-bottom: 10px; }
+        .label { font-weight: bold; font-size: 1.1rem; }
+        .sub { font-size: 0.8rem; color: #cbd5e1; }
+        .status-badge { display: inline-block; padding: 5px 10px; background: #22c55e; color: black; border-radius: 20px; font-size: 0.8rem; font-weight: bold; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <span class="status-badge">● SYSTEM ONLINE</span>
+        <h1>TG-SYSTEM ENTERPRISE</h1>
+        <p>통합 관리 및 제어 센터 (v4.1.0)</p>
+        
+        <div class="grid">
+            <a href="/ops/status" class="card">
+                <span class="icon">📊</span>
+                <span class="label">운영 대시보드</span>
+                <div class="sub">Live Ops Status</div>
+            </a>
+            <a href="/docs" class="card">
+                <span class="icon">🛠️</span>
+                <span class="label">Core API 문서</span>
+                <div class="sub">Swagger UI</div>
+            </a>
+            <a href="http://localhost:8001/" target="_blank" class="card" style="border-color: #f59e0b;">
+                <span class="icon">🏪</span>
+                <span class="label">매장 POS 시스템</span>
+                <div class="sub">Commerce Engine</div>
+            </a>
+            <a href="http://localhost:8001/docs" target="_blank" class="card">
+                <span class="icon">📦</span>
+                <span class="label">Commerce API</span>
+                <div class="sub">Swagger UI</div>
+            </a>
+        </div>
+    </div>
+</body>
+</html>

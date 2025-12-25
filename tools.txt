@@ -1,0 +1,7 @@
+[AVAILABLE_TOOLS]
+- spec_reader: 설계 프로젝트 폴더의 기획서 및 데이터 규격을 읽고 해석하는 도구.
+- workspace_manager: 개발 프로젝트 폴더 내의 폴더 구조를 생성하고 관리하는 도구.
+- source_compiler: 각 언어별 표준 규격에 맞는 소스 코드를 생성 및 편집하는 엔진.
+- dependency_resolver: 프로젝트 실행에 필요한 라이브러리 목록(requirements.txt, package.json 등)을 정의하는 도구.
+- terminal_executor (cmd/powershell): 실제 윈도우 터미널 명령을 수행하여 컴파일, 빌드, 테스트를 실행하는 강력한 도구.
+- code_analyzer (추가): 기존 소스 파일을 읽어와(Read) 로직을 파악하고 수정 포인트를 도출하는 분석 도구.

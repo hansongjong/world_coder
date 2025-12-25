@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  # [Service 1] Core Kernel (Admin & Marketing)
+  tg-core:
+    build: .
+    container_name: tg-core-system
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000
+    volumes:
+      - ./tg_master_v3.db:/app/tg_master_v3.db  # DB 공유
+      - ./sessions:/app/sessions                # 텔레그램 세션 유지
+      - ./data:/app/data                        # 타겟 데이터 유지
+      - ./logs:/app/logs                        # 로그 유지
+    env_file:
+      - .env
+    restart: unless-stopped
+    networks:
+      - tg-network
+
+  # [Service 2] Commerce Engine (POS & Booking)
+  tg-commerce:
+    build: .
+    container_name: tg-commerce-engine
+    command: uvicorn src.main_commerce:app --host 0.0.0.0 --port 8001
+    volumes:
+      - ./tg_master_v3.db:/app/tg_master_v3.db  # DB 공유
+      - ./logs:/app/logs
+    env_file:
+      - .env
+    depends_on:
+      - tg-core # Core가 먼저 뜨는 것을 권장 (DB 초기화 등 이유)
+    restart: unless-stopped
+    networks:
+      - tg-network
+
+  # [Service 3] API Gateway (Nginx)
+  tg-gateway:
+    image: nginx:alpine
+    container_name: tg-api-gateway
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - tg-core
+      - tg-commerce
+    networks:
+      - tg-network
+
+networks:
+  tg-network:
+    driver: bridge

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="refresh" content="10"> <!-- Auto Refresh -->
+    <title>TG-SYSTEM Live Ops</title>
+    <style>
+        :root { --bg: #0f172a; --card-bg: #1e293b; --text: #e2e8f0; --accent: #38bdf8; --green: #22c55e; --red: #ef4444; --border: #334155; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+        .container { max_width: 1400px; margin: 0 auto; }
+        h1 { color: var(--accent); border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+        
+        .summary-card { background: var(--card-bg); padding: 20px; border-radius: 8px; margin: 20px 0; display: flex; justify-content: space-around; border: 1px solid var(--border); }
+        .score-val { font-size: 2.5rem; font-weight: bold; color: var(--green); }
+        .score-label { color: #94a3b8; font-size: 0.9rem; text-transform: uppercase; }
+        
+        table { width: 100%; border-collapse: collapse; background: var(--card-bg); font-size: 0.9rem; }
+        th, td { padding: 10px 15px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { background: #020617; color: var(--accent); text-transform: uppercase; }
+        
+        .category-row td { background: #334155; color: #fff; font-weight: bold; font-size: 1rem; padding-top: 20px; }
+        .path-cell { font-family: monospace; color: #94a3b8; }
+        .phase-badge { background: #475569; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; margin-right: 8px; }
+        
+        .status-found { color: var(--green); font-weight: bold; }
+        .status-missing { color: var(--red); font-weight: bold; }
+    </head>
+<body>
+    <div class="container">
+        <h1>🚀 TG-SYSTEM LIVE OPS (Jinja2 Engine)</h1>
+        
+        <div class="summary-card">
+            <div style="text-align:center">
+                <div class="score-val">{{ score }}%</div>
+                <div class="score-label">Completion Score</div>
+            </div>
+            <div style="text-align:center">
+                <div class="score-val">{{ found }}/{{ total }}</div>
+                <div class="score-label">Artifacts Online</div>
+            </div>
+            <div style="text-align:center">
+                <div class="score-val">LIVE</div>
+                <div class="score-label">System Status</div>
+            </div>
+            <div style="text-align:center">
+                <div class="score-val" style="font-size:1.5rem; margin-top:10px">{{ now }}</div>
+                <div class="score-label">Last Updated</div>
+            </div>
+        </div>
+
+        <table>
+            <thead>
+                <tr><th>Component</th><th>Path</th><th>Status</th><th>Last Modified</th><th>Size</th></tr>
+            </thead>
+            <tbody>
+                {% for category, items in artifacts.items() %}
+                <tr class="category-row"><td colspan="5">{{ category }}</td></tr>
+                {% for item in items %}
+                <tr>
+                    <td><span class="phase-badge">{{ item.phase }}</span> {{ item.name }}</td>
+                    <td class="path-cell">{{ item.path }}</td>
+                    <td class="{{ 'status-found' if item.exists else 'status-missing' }}">
+                        {{ '✅ FOUND' if item.exists else '❌ MISSING' }}
+                    </td>
+                    <td>{{ item.last_mod }}</td>
+                    <td>{{ item.size }}</td>
+                </tr>
+                {% endfor %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

@@ -1,0 +1,270 @@
+
+    <!DOCTYPE html>
+    <html lang="ko">
+    <head>
+        <meta charset="UTF-8">
+        <title>TG-SYSTEM Artifact Traceability</title>
+        <style>
+            :root { --bg: #0f172a; --card-bg: #1e293b; --text: #e2e8f0; --accent: #38bdf8; --green: #22c55e; --red: #ef4444; --border: #334155; }
+            body { font-family: 'Consolas', 'Monaco', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+            .container { max_width: 1400px; margin: 0 auto; }
+            
+            header { border-bottom: 2px solid var(--accent); padding-bottom: 20px; margin-bottom: 30px; }
+            h1 { margin: 0; color: var(--accent); }
+            .meta { color: #94a3b8; font-size: 0.9rem; margin-top: 5px; }
+            
+            .summary-card { background: var(--card-bg); padding: 20px; border-radius: 8px; margin-bottom: 30px; display: flex; align-items: center; justify-content: space-around; border: 1px solid var(--border); }
+            .score-box { text-align: center; }
+            .score-val { font-size: 3rem; font-weight: bold; color: var(--green); }
+            .score-label { text-transform: uppercase; color: #94a3b8; font-size: 0.8rem; letter-spacing: 1px; }
+            
+            table { width: 100%; border-collapse: collapse; background: var(--card-bg); font-size: 0.9rem; }
+            th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid var(--border); }
+            th { background: #0f172a; color: var(--accent); text-transform: uppercase; font-size: 0.8rem; }
+            
+            .category-row td { background: #334155; color: #fff; font-weight: bold; padding: 10px; font-size: 1rem; }
+            .path-cell { font-family: 'Courier New', monospace; color: #94a3b8; }
+            .phase-badge { background: #475569; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; margin-right: 8px; }
+            
+            .status-found { color: var(--green); font-weight: bold; }
+            .status-missing { color: var(--red); font-weight: bold; }
+            
+            footer { margin-top: 50px; text-align: center; color: #64748b; font-size: 0.8rem; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <header>
+                <h1>TG-SYSTEM ARTIFACT TRACKER</h1>
+                <div class="meta">Validation based on physical file existence | Generated: 2025-12-26 00:10:53</div>
+            </header>
+            
+            <div class="summary-card">
+                <div class="score-box">
+                    <div class="score-val">100%</div>
+                    <div class="score-label">Traceability Score</div>
+                </div>
+                <div class="score-box">
+                    <div class="score-val">24/24</div>
+                    <div class="score-label">Artifacts Verified</div>
+                </div>
+                <div class="score-box">
+                    <div class="score-val">V3.5</div>
+                    <div class="score-label">System Version</div>
+                </div>
+            </div>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>Deliverable (Module)</th>
+                        <th>Physical Path</th>
+                        <th>Status</th>
+                        <th>Last Modified</th>
+                        <th>Size</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="category-row"><td colspan="5">1. Database & Core</td></tr>
+            <tr>
+                <td><span class="phase-badge">P1</span> V3 Core Schema</td>
+                <td class="path-cell">src/core/database/v3_schema.py</td>
+                <td class="status-found">✅ FOUND</td>
+                <td>2025-12-25 23:50</td>
+                <td>2742 bytes</td>
+            </tr>
+            
+            <tr>
+                <td><span class="phase-badge">P1</span> Commerce Models</td>
+                <td class="path-cell">src/commerce/domain/models.py</td>
+                <td class="status-found">✅ FOUND</td>
+                <td>2025-12-25 23:51</td>
+                <td>4358 bytes</td>
+            </tr>
+            
+            <tr>
+                <td><span class="phase-badge">P2.5</span> Extension Models</td>
+                <td class="path-cell">src/commerce/domain/models_gap_v2.py</td>
+                <td class="status-found">✅ FOUND</td>
+                <td>2025-12-26 00:08</td>
+                <td>2396 bytes</td>
+            </tr>
+            
+            <tr>
+                <td><span class="phase-badge">P1</span> System Kernel</td>
+                <td class="path-cell">src/core/kernel.py</td>
+                <td class="status-found">✅ FOUND</td>
+                <td>2025-12-25 23:49</td>
+                <td>3113 bytes</td>
+            </tr>
+            
+            <tr>
+                <td><span class="phase-badge">P1</span> Security Module</td>
+                <td class="path-cell">src/commerce/auth/security.py</td>
+                <td class="status-found">✅ FOUND</td>
+                <td>2025-12-25 23:51</td>
+                <td>1924 bytes</td>
+            </tr>
+            <tr class="category-row"><td colspan="5">2. Business API (Backend)</td></tr>
+            <tr>
+                <td><span class="phase-badge">P1</span> Product API</td>
+                <td class="path-cell">src/commerce/api/products.py</td>
+                <td class="status-found">✅ FOUND</td>
+                <td>2025-12-25 23:51</td>
+                <td>1892 bytes</td>
+            </tr>
+            
+            <tr>
+                <td><span class="phase-badge">P1</span> Order Engine</td>
+                <td class="path-cell">src/commerce/api/orders.py</td>
+                <td class="status-found">✅ FOUND</td>
+                <td>2025-12-25 23:51</td>
+                <td>2853 bytes</td>
+            </tr>
+            
+            <tr>
+                <td><span class="phase-badge">P2</span> Booking Engine</td>
+                <td class="path-cell">src/commerce/api/booking.py</td>
+                <td class="status-found">✅ FOUND</td>
+                <td>2025-12-25 23:56</td>
+                <td>2827 bytes</td>
+            </tr>
+            
+            <tr>
+                <td><span class="phase-badge">P2</span> IoT Controller</td>
+                <td class="path-cell">src/commerce/api/iot.py</td>
+                <td class="status-found">✅ FOUND</td>
+                <td>2025-12-25 23:56</td>
+                <td>2595 bytes</td>
+            </tr>
+            
+            <tr>
+                <td><span class="phase-badge">P2.5</span> Delivery/P2P</td>
+                <td class="path-cell">src/commerce/api/delivery.py</td>
+                <td class="status-found">✅ FOUND</td>
+                <td>2025-12-26 00:08</td>
+                <td>1822 bytes</td>
+            </tr>
+            
+            <tr>
+                <td><span class="phase-badge">P2.5</span> Membership</td>
+                <td class="path-cell">src/commerce/api/membership.py</td>
+                <td class="status-found">✅ FOUND</td>
+                <td>2025-12-26 00:08</td>
+                <td>2044 bytes</td>
+            </tr>
+            
+            <tr>
+                <td><span class="phase-badge">P2.5</span> HR System</td>
+                <td class="path-cell">src/commerce/api/hr.py</td>
+                <td class="status-found">✅ FOUND</td>
+                <td>2025-12-26 00:06</td>
+                <td>2334 bytes</td>
+            </tr>
+            
+            <tr>
+                <td><span class="phase-badge">P3</span> ERP Stats</td>
+                <td class="path-cell">src/commerce/api/stats.py</td>
+                <td class="status-found">✅ FOUND</td>
+                <td>2025-12-26 00:00</td>
+                <td>3540 bytes</td>
+            </tr>
+            <tr class="category-row"><td colspan="5">3. Frontend (POS App)</td></tr>
+            <tr>
+                <td><span class="phase-badge">P1</span> Flutter Config</td>
+                <td class="path-cell">tg_pos_app/pubspec.yaml</td>
+                <td class="status-found">✅ FOUND</td>
+                <td>2025-12-25 23:58</td>
+                <td>562 bytes</td>
+            </tr>
+            
+            <tr>
+                <td><span class="phase-badge">P1</span> App Entry</td>
+                <td class="path-cell">tg_pos_app/lib/main.dart</td>
+                <td class="status-found">✅ FOUND</td>
+                <td>2025-12-25 23:58</td>
+                <td>977 bytes</td>
+            </tr>
+            
+            <tr>
+                <td><span class="phase-badge">P2</span> API Service</td>
+                <td class="path-cell">tg_pos_app/lib/services/api_service_v2.dart</td>
+                <td class="status-found">✅ FOUND</td>
+                <td>2025-12-26 00:09</td>
+                <td>2388 bytes</td>
+            </tr>
+            
+            <tr>
+                <td><span class="phase-badge">P2</span> POS Screen</td>
+                <td class="path-cell">tg_pos_app/lib/screens/pos_screen_v2.dart</td>
+                <td class="status-found">✅ FOUND</td>
+                <td>2025-12-26 00:09</td>
+                <td>4065 bytes</td>
+            </tr>
+            
+            <tr>
+                <td><span class="phase-badge">P2</span> Booking Screen</td>
+                <td class="path-cell">tg_pos_app/lib/screens/reservation_screen.dart</td>
+                <td class="status-found">✅ FOUND</td>
+                <td>2025-12-26 00:09</td>
+                <td>2250 bytes</td>
+            </tr>
+            <tr class="category-row"><td colspan="5">4. Infrastructure & Ops</td></tr>
+            <tr>
+                <td><span class="phase-badge">P1</span> Main App (Core)</td>
+                <td class="path-cell">src/main.py</td>
+                <td class="status-found">✅ FOUND</td>
+                <td>2025-12-25 23:51</td>
+                <td>1402 bytes</td>
+            </tr>
+            
+            <tr>
+                <td><span class="phase-badge">P2</span> Main App (Commerce)</td>
+                <td class="path-cell">src/main_commerce.py</td>
+                <td class="status-found">✅ FOUND</td>
+                <td>2025-12-26 00:08</td>
+                <td>1802 bytes</td>
+            </tr>
+            
+            <tr>
+                <td><span class="phase-badge">P4</span> Dockerfile</td>
+                <td class="path-cell">Dockerfile</td>
+                <td class="status-found">✅ FOUND</td>
+                <td>2025-12-26 00:02</td>
+                <td>981 bytes</td>
+            </tr>
+            
+            <tr>
+                <td><span class="phase-badge">P4</span> Docker Compose</td>
+                <td class="path-cell">docker-compose.yml</td>
+                <td class="status-found">✅ FOUND</td>
+                <td>2025-12-26 00:02</td>
+                <td>1419 bytes</td>
+            </tr>
+            
+            <tr>
+                <td><span class="phase-badge">P4</span> Nginx Config</td>
+                <td class="path-cell">nginx/nginx.conf</td>
+                <td class="status-found">✅ FOUND</td>
+                <td>2025-12-26 00:02</td>
+                <td>1112 bytes</td>
+            </tr>
+            
+            <tr>
+                <td><span class="phase-badge">P4</span> Startup Script</td>
+                <td class="path-cell">start_system.bat</td>
+                <td class="status-found">✅ FOUND</td>
+                <td>2025-12-26 00:02</td>
+                <td>671 bytes</td>
+            </tr>
+            
+                </tbody>
+            </table>
+            
+            <footer>
+                TG-SYSTEM Enterprise | Traceability Matrix by CODER-X
+            </footer>
+        </div>
+    </body>
+    </html>
+    

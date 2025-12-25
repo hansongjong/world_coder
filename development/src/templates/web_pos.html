@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>TG-POS Web</title>
+    <style>
+        body { font-family: sans-serif; margin: 0; display: flex; height: 100vh; background: #f1f5f9; }
+        /* Left: Menu */
+        .menu-panel { flex: 2; padding: 20px; overflow-y: auto; }
+        .category-title { font-size: 1.5rem; font-weight: bold; margin: 20px 0 10px; color: #334155; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; }
+        .product-card { background: white; padding: 15px; border-radius: 10px; text-align: center; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.05); transition: 0.2s; }
+        .product-card:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); border: 2px solid #3b82f6; }
+        .p-name { font-weight: bold; margin-bottom: 5px; display: block; }
+        .p-price { color: #3b82f6; }
+        
+        /* Right: Cart */
+        .cart-panel { flex: 1; background: white; display: flex; flex-direction: column; border-left: 1px solid #e2e8f0; box-shadow: -5px 0 15px rgba(0,0,0,0.05); }
+        .cart-header { padding: 20px; background: #1e293b; color: white; font-size: 1.2rem; font-weight: bold; }
+        .cart-list { flex: 1; overflow-y: auto; padding: 10px; }
+        .cart-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #f1f5f9; align-items: center; }
+        .qty-badge { background: #3b82f6; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.8rem; margin-left: 5px; }
+        .cart-footer { padding: 20px; background: #f8fafc; border-top: 1px solid #e2e8f0; }
+        .total-row { display: flex; justify-content: space-between; font-size: 1.5rem; font-weight: bold; margin-bottom: 15px; }
+        .pay-btn { width: 100%; padding: 15px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-size: 1.2rem; cursor: pointer; font-weight: bold; }
+        .pay-btn:hover { background: #2563eb; }
+        .pay-btn:disabled { background: #cbd5e1; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+    <div class="menu-panel" id="menuArea">
+        <h1>🍔 TG-BURGER GANGNAM (Store ID: 1)</h1>
+        <div id="menuContent">Loading Menu...</div>
+    </div>
+    
+    <div class="cart-panel">
+        <div class="cart-header">ORDER LIST</div>
+        <div class="cart-list" id="cartList">
+            <!-- Items go here -->
+            <div style="text-align:center; color:#94a3b8; margin-top:50px;">Cart is empty</div>
+        </div>
+        <div class="cart-footer">
+            <div class="total-row">
+                <span>Total</span>
+                <span id="totalPrice">0원</span>
+            </div>
+            <button class="pay-btn" id="payBtn" onclick="placeOrder()" disabled>결제하기 (PAY)</button>
+        </div>
+    </div>
+
+    <script>
+        // API Base URL (Proxy via Nginx or Direct)
+        const API_BASE = "http://localhost:8001"; 
+        const STORE_ID = 1;
+        let cart = [];
+        let menuData = [];
+
+        // 1. Load Menu
+        async function loadMenu() {
+            try {
+                // 로그인 없이 메뉴 조회 가능하도록 API가 열려있다고 가정 (또는 Owner가 미리 로그인된 상태)
+                // 데모를 위해 Auth Token 생략 (실제론 Login 필요)
+                // products.py의 get_store_menu는 Auth 의존성이 없으므로 호출 가능
+                const res = await fetch(`${API_BASE}/products/menu/${STORE_ID}`);
+                if(!res.ok) throw new Error("Failed to load menu");
+                menuData = await res.json();
+                renderMenu();
+            } catch (e) {
+                document.getElementById('menuContent').innerHTML = `<p style="color:red">Error loading menu: ${e.message}<br>Please run <b>seed_commerce_data.py</b> first.</p>`;
+            }
+        }
+
+        function renderMenu() {
+            const container = document.getElementById('menuContent');
+            container.innerHTML = "";
+            
+            menuData.forEach(cat => {
+                const html = `
+                    <div class="category-title">${cat.category_name}</div>
+                    <div class="grid">
+                        ${cat.items.map(item => `
+                            <div class="product-card" onclick="addToCart(${item.id}, '${item.name}', ${item.price})">
+                                <span class="p-name">${item.name}</span>
+                                <span class="p-price">${item.price.toLocaleString()}원</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                container.innerHTML += html;
+            });
+        }
+
+        // 2. Cart Logic
+        function addToCart(id, name, price) {
+            const existing = cart.find(c => c.id === id);
+            if(existing) existing.qty++;
+            else cart.push({id, name, price, qty: 1});
+            renderCart();
+        }
+
+        function renderCart() {
+            const container = document.getElementById('cartList');
+            const totalEl = document.getElementById('totalPrice');
+            const btn = document.getElementById('payBtn');
+            
+            if(cart.length === 0) {
+                container.innerHTML = `<div style="text-align:center; color:#94a3b8; margin-top:50px;">Cart is empty</div>`;
+                totalEl.innerText = "0원";
+                btn.disabled = true;
+                return;
+            }
+
+            let total = 0;
+            container.innerHTML = cart.map(item => {
+                total += item.price * item.qty;
+                return `
+                <div class="cart-item">
+                    <div>
+                        <b>${item.name}</b>
+                        <div style="font-size:0.8rem; color:#64748b">${item.price.toLocaleString()}원</div>
+                    </div>
+                    <div>
+                        <span class="qty-badge">x${item.qty}</span>
+                    </div>
+                </div>`;
+            }).join('');
+            
+            totalEl.innerText = total.toLocaleString() + "원";
+            btn.disabled = false;
+        }
+
+        // 3. Order
+        async function placeOrder() {
+            if(!confirm("주문하시겠습니까?")) return;
+            
+            const payload = {
+                store_id: STORE_ID,
+                table_no: "WEB-POS",
+                items: cart.map(c => ({ product_id: c.id, quantity: c.qty, options: "{}" }))
+            };
+
+            try {
+                const res = await fetch(`${API_BASE}/orders/place`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                const result = await res.json();
+                
+                if(res.ok) {
+                    alert(`주문 완료! (Order ID: ${result.order_id})`);
+                    cart = [];
+                    renderCart();
+                } else {
+                    alert("주문 실패: " + JSON.stringify(result));
+                }
+            } catch(e) {
+                alert("Network Error: " + e.message);
+            }
+        }
+
+        loadMenu();
+    </script>
+</body>
+</html>

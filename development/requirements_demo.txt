@@ -1,0 +1,12 @@
+# 기존 의존성 포함
+fastapi>=0.100.0
+uvicorn>=0.22.0
+sqlalchemy>=2.0.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+telethon>=1.30.0
+loguru>=0.7.0
+
+# 시각화 및 데모용 추가
+rich>=13.0.0
+typer>=0.9.0
