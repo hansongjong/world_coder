@@ -2,6 +2,7 @@ import os
 import json
 import re
 import threading
+import subprocess
 from datetime import datetime
 from pathlib import Path
 
@@ -10,7 +11,7 @@ import google.generativeai as genai
 from dotenv import load_dotenv
 
 # ==========================================
-# 1. 고정 환경 설정 로더
+# 1. 고정 환경 및 지능 로더 (config.env 완벽 연동)
 # ==========================================
 class CoderConfig:
     def __init__(self):
@@ -38,11 +39,12 @@ class CoderConfig:
             f"{self.persona}\n\n"
             f"[CONTEXT PATHS]\n- Planning Data: {self.plan_path}\n- Development Root: {self.dev_path}\n\n"
             f"[INSTRUCTIONS]\n{self.instructions}\n\n"
-            f"[TOOLS]\n{self.tools}"
+            f"[TOOLS]\n{self.tools}\n\n"
+            "[SYSTEM_ACCESS] 당신은 [CMD_EXEC:명령어]를 통해 실제 터미널을 제어할 권한이 있습니다."
         )
 
 # ==========================================
-# 2. 개발 워크스페이스 및 기억 저장소
+# 2. 통합 저장소 및 히스토리 관리자 (복원 버그 해결)
 # ==========================================
 class CoderStorage:
     def __init__(self, config):
@@ -55,39 +57,47 @@ class CoderStorage:
         self.config.dev_path.mkdir(parents=True, exist_ok=True)
         self.log_path.mkdir(parents=True, exist_ok=True)
 
-    def read_plan_file(self, filename):
-        """설계 폴더에서 파일을 찾아 내용을 읽음"""
+    def find_and_read(self, filename):
+        """개발 폴더(수정용) 또는 설계 폴더(참조용)에서 파일을 찾아 읽음"""
         search_name = os.path.basename(filename)
+        # 1. 개발 워크스페이스 우선 (수정 모드)
+        for root, _, files in os.walk(self.config.dev_path):
+            if search_name in files:
+                return (Path(root) / search_name).read_text(encoding="utf-8"), "DEV_WORKSPACE"
+        # 2. 설계 폴더 (참조 모드)
         for root, _, files in os.walk(self.config.plan_path):
             if search_name in files:
-                return (Path(root) / search_name).read_text(encoding="utf-8")
-        return None
+                return (Path(root) / search_name).read_text(encoding="utf-8"), "PLAN_DATA"
+        return None, None
 
     def write_code(self, filename, content):
-        """개발 폴더 내에 소스 코드 작성"""
         target_path = (self.config.dev_path / filename).resolve()
-        # 보안: 개발 폴더 외부로 나가는 것 방지
-        if not str(target_path).startswith(str(self.config.dev_path.resolve())):
-            return f"ERROR: Security Breach - Path traversal blocked."
-        
         target_path.parent.mkdir(parents=True, exist_ok=True)
         with open(target_path, "w", encoding="utf-8") as f:
             f.write(content)
-        return f"SUCCESS: {filename} has been developed."
+        return f"SUCCESS: {filename} written/updated."
 
     def save_history(self, history):
-        data = [{"role": h.role, "text": h.parts[0].text} for h in history]
+        """히스토리 저장 시 display_role을 명시하여 로드 시 에러 방지"""
+        data = []
+        for h in history:
+            role = h.role
+            d_role = "USER" if role == "user" else "CODER"
+            data.append({"role": role, "display_role": d_role, "text": h.parts[0].text})
+        
         with open(self.history_file, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
 
     def load_history(self):
         if self.history_file.exists():
-            with open(self.history_file, "r", encoding="utf-8") as f:
-                return json.load(f)
+            try:
+                with open(self.history_file, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except: return []
         return []
 
 # ==========================================
-# 3. 개발 엔진 (Coder Engine)
+# 3. 개발/실행 통합 엔진
 # ==========================================
 class CoderEngine:
     def __init__(self, config):
@@ -101,35 +111,54 @@ class CoderEngine:
         )
         
         history_raw = self.storage.load_history()
-        past_history = [{"role": h["role"], "parts": [h["text"]]} for h in history_raw]
+        # AI 모델용 포맷으로 변환
+        past_history = [{"role": h.get("role", "user"), "parts": [h.get("text", "")]} for h in history_raw]
         self.session = self.model.start_chat(history=past_history)
 
+    def execute_terminal(self, command):
+        """실제 터미널 명령 수행"""
+        try:
+            result = subprocess.run(
+                ["powershell", "-Command", command],
+                cwd=self.config.dev_path,
+                capture_output=True, text=True, timeout=120, encoding='utf-8'
+            )
+            return f"\n[STDOUT]\n{result.stdout}\n[STDERR]\n{result.stderr}"
+        except Exception as e:
+            return f"\n[EXECUTION_ERROR] {str(e)}"
+
     def develop(self, cmd):
-        # 1. 명령에 포함된 설계 파일 언급 탐색 (예: "tg_system_contract.json 참고해서")
-        match = re.search(r'([a-zA-Z0-9_\-\./\\]+\.(?:md|txt|json|html))', cmd)
-        plan_content = ""
+        # 파일 자동 탐색 및 컨텍스트 주입
+        match = re.search(r'([a-zA-Z0-9_\-\./\\]+\.(?:md|txt|json|html|py|js|java|cpp|cs|go))', cmd)
+        related_content = ""
         if match:
-            plan_content = self.storage.read_plan_file(match.group(1))
-        
-        prompt = (
-            f"[PLANNING CONTEXT LOADED]\n{plan_content[:3000] if plan_content else 'No specific plan file linked.'}\n\n"
-            f"[USER COMMAND]: {cmd}\n"
-            f"지시: 설계 내용을 바탕으로 고품질 코드를 작성하고 [CODE_WRITE:파일명]...[/CODE_WRITE]를 사용하십시오."
-        )
+            content, source = self.storage.find_and_read(match.group(1))
+            if content:
+                related_content = f"\n[CONTEXT LOADED ({source})]\n{content[:4000]}"
+
+        prompt = f"{related_content}\n\n[USER COMMAND]: {cmd}\n지시: 설계를 따르고 기존 코드를 보완한 뒤 실행 테스트를 수행하십시오."
 
         try:
             response = self.session.send_message(prompt)
-            # [CODE_WRITE] 태그 파싱 및 파일 저장
-            matches = re.findall(r"\[CODE_WRITE:(.*?)\](.*?)\[/CODE_WRITE\]", response.text, re.DOTALL)
+            full_text = response.text
+            
+            # 1. 코드 작성 처리
+            matches = re.findall(r"\[CODE_WRITE:(.*?)\](.*?)\[/CODE_WRITE\]", full_text, re.DOTALL)
             results = [self.storage.write_code(f.strip(), c.strip()) for f, c in matches]
             
+            # 2. 터미널 명령 처리
+            cmd_matches = re.findall(r"\[CMD_EXEC:(.*?)\]", full_text)
+            for t_cmd in cmd_matches:
+                t_res = self.execute_terminal(t_cmd.strip())
+                full_text += f"\n\n[TERMINAL OUTPUT: {t_cmd}]{t_res}"
+            
             self.storage.save_history(self.session.history)
-            return response.text + ("\n\n[DEVELOPMENT LOGS]\n" + "\n".join(results) if results else "")
+            return full_text + ("\n\n[DEV LOGS]\n" + "\n".join(results) if results else "")
         except Exception as e:
             return f"DEVELOPMENT_FAILURE: {str(e)}"
 
 # ==========================================
-# 4. 사용자 인터페이스 (Coder Dashboard)
+# 4. 고정 인터페이스 GUI (히스토리 복원 수정)
 # ==========================================
 class CoderApp(ctk.CTk):
     def __init__(self):
@@ -137,7 +166,7 @@ class CoderApp(ctk.CTk):
         self.config = CoderConfig()
         self.engine = CoderEngine(self.config)
 
-        self.title(f"CODER-X SUPREME | {self.config.model_name}")
+        self.title(f"CODER-X SUPREME v5.0 | {self.config.model_name}")
         self.geometry("1200x950")
         ctk.set_appearance_mode("dark")
 
@@ -147,19 +176,19 @@ class CoderApp(ctk.CTk):
         # Header
         self.header = ctk.CTkFrame(self, height=50, fg_color="#1A1A1A")
         self.header.grid(row=0, column=0, padx=20, pady=10, sticky="ew")
-        status_txt = f"● CODER ONLINE | SRC: {self.config.plan_path.name} | DEST: {self.config.dev_path.name}"
+        status_txt = f"● CODER ACTIVE | WS: {self.config.dev_path.name} | EXEC: ENABLED"
         self.lbl_status = ctk.CTkLabel(self.header, text=status_txt, text_color="#00FFCC", font=("Consolas", 14, "bold"))
         self.lbl_status.pack(side="left", padx=20)
 
-        # Chat Window
+        # Chat
         self.console = ctk.CTkTextbox(self, font=("Consolas", 14), spacing2=8, border_width=2, border_color="#222")
         self.console.grid(row=1, column=0, padx=20, pady=10, sticky="nsew")
         self.console.configure(state="disabled")
 
-        # Input Area
+        # Input
         self.input_area = ctk.CTkFrame(self, fg_color="transparent")
         self.input_area.grid(row=2, column=0, padx=20, pady=20, sticky="ew")
-        self.entry = ctk.CTkEntry(self.input_area, placeholder_text="개발 명령 입력 (예: 'tg_system_contract.json 기반으로 백엔드 API 구현해줘')", height=65, font=("Consolas", 16))
+        self.entry = ctk.CTkEntry(self.input_area, placeholder_text="개발/수정/테스트 명령 입력...", height=65, font=("Consolas", 16))
         self.entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
         self.entry.bind("<Return>", lambda e: self.run_dev())
 
@@ -167,26 +196,35 @@ class CoderApp(ctk.CTk):
         self.btn.pack(side="right")
 
         self.restore_history()
-        self.add_log("SYSTEM", f"CODER-X 수석 개발자 엔진 가동. '{self.config.plan_path}'의 설계도를 바탕으로 개발을 수행할 준비가 되었습니다.")
+        self.add_log("SYSTEM", "수석 개발자 엔진 가동. 이전 대화 기록이 성공적으로 복구되었습니다.")
 
     def restore_history(self):
+        """히스토리 로드 시 display_role이 없어도 안전하게 로드하도록 수정"""
         history = self.engine.storage.load_history()
         if history:
             self.console.configure(state="normal")
             for h in history:
-                sender = "USER" if h["role"] == "user" else "CODER"
-                self.add_log(sender, h["text"], is_past=True)
+                # 데이터 호환성 보장 로직
+                sender = h.get("display_role")
+                if not sender:
+                    sender = "USER" if h.get("role") == "user" else "CODER"
+                
+                msg = h.get("text", "")
+                self.add_log(sender, msg, is_past=True)
             self.console.configure(state="disabled")
             self.console.see("end")
 
     def add_log(self, sender, msg, is_past=False):
         self.console.configure(state="normal")
         ts = datetime.now().strftime("%H:%M:%S")
+        tag_ts = ts if not is_past else "PAST"
+        
+        # 색상 고정
         color = "#3498db" if sender == "USER" else "#e74c3c" if sender == "CODER" else "#2ecc71"
-        header = f"[{sender} | {ts if not is_past else 'PAST'}]\n"
+        header = f"[{sender} | {tag_ts}]\n"
         self.console.insert("end", f"{header}{msg}\n\n" + "="*80 + "\n\n")
         
-        tag_id = f"tag_{datetime.now().timestamp()}"
+        tag_id = f"tag_{datetime.now().timestamp()}_{sender}"
         self.console.tag_add(tag_id, "end -3lines", "end -2lines")
         self.console.tag_config(tag_id, foreground=color)
         
@@ -198,7 +236,7 @@ class CoderApp(ctk.CTk):
         if not cmd: return
         self.add_log("USER", cmd)
         self.entry.delete(0, "end")
-        self.lbl_status.configure(text="● CODER-X IS CODING...", text_color="#F1C40F")
+        self.lbl_status.configure(text="● CODER-X ANALYZING & TESTING...", text_color="#F1C40F")
         threading.Thread(target=self._exec, args=(cmd,), daemon=True).start()
 
     def _exec(self, cmd):

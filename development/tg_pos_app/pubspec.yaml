@@ -1,5 +1,5 @@
 name: tg_pos_app
-description: TG-SYSTEM Tablet POS Application
+description: TG-SYSTEM Windows POS
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -9,20 +9,11 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  
-  # Networking
   http: ^1.1.0
-  
-  # State Management
   provider: ^6.0.5
-  
-  # Local Storage (JWT)
-  shared_preferences: ^2.2.0
   flutter_secure_storage: ^9.0.0
-  
-  # Utils
-  intl: ^0.18.1 # 화폐 포맷팅
-  google_fonts: ^6.1.0
+  shared_preferences: ^2.2.0
+  intl: ^0.18.1
 
 dev_dependencies:
   flutter_test:

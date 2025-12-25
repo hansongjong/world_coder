@@ -1,4 +1,3 @@
-// V3: 결제 수단 선택 및 영수증 기능 추가 버전
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -11,6 +10,7 @@ import 'reservation_screen.dart';
 class PosScreenV3 extends StatefulWidget {
   final int storeId;
   const PosScreenV3({super.key, required this.storeId});
+
   @override
   State<PosScreenV3> createState() => _PosScreenV3State();
 }
@@ -30,7 +30,7 @@ class _PosScreenV3State extends State<PosScreenV3> {
       final data = await _api.getMenu(widget.storeId);
       setState(() => _menu = data);
     } catch(e) {
-      // Error handling
+      print("Menu Load Error: $e");
     }
   }
 
@@ -49,33 +49,29 @@ class _PosScreenV3State extends State<PosScreenV3> {
 
   Future<void> _processOrder(String method, int received, int change) async {
     final cart = context.read<CartProvider>();
-    
-    // 주문 데이터 생성
     final orderData = {
       "store_id": widget.storeId,
       "table_no": "POS-01",
-      "payment_method": method, // 백엔드에 결제 수단 전송 추가 필요 (API 수정 권장)
-      "items": cart.items.map((e) => {"product_id": e.productId, "quantity": e.quantity}).toList()
+      "items": cart.items.map((e) => {
+        "product_id": e.productId, 
+        "quantity": e.quantity
+      }).toList()
     };
 
     try {
-      // 실제 API 호출 (백엔드 models.py의 Payment 테이블에 method 저장 로직이 필요하지만 현재는 생략)
       await _api.placeOrder(orderData);
-      
-      // 장바구니 백업 (영수증용)
       final itemsBackup = List.from(cart.items);
       final totalBackup = cart.totalAmount;
-      
-      cart.clear(); // 장바구니 비우기
+      final orderId = "ORD-${DateTime.now().millisecondsSinceEpoch}";
+      cart.clear();
 
       if (!mounted) return;
       
-      // 영수증 출력
       showDialog(
         context: context,
         barrierDismissible: false,
         builder: (_) => ReceiptDialog(
-          orderId: "ORDER-${DateTime.now().millisecondsSinceEpoch}", // 임시 ID
+          orderId: orderId,
           totalAmount: totalBackup,
           method: method,
           received: received,
@@ -83,7 +79,6 @@ class _PosScreenV3State extends State<PosScreenV3> {
           items: itemsBackup
         )
       );
-
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
     }
@@ -92,34 +87,48 @@ class _PosScreenV3State extends State<PosScreenV3> {
   @override
   Widget build(BuildContext context) {
     final currency = NumberFormat("#,###", "ko_KR");
-    // (기존 UI 코드와 동일, 버튼 이벤트만 변경)
+
     return Scaffold(
-      appBar: AppBar(title: const Text("TG-POS Expert"), backgroundColor: Colors.black87),
+      appBar: AppBar(title: const Text("TG-POS V3"), backgroundColor: Colors.indigo),
+      drawer: Drawer(
+        child: ListView(
+          children: [
+            const DrawerHeader(child: Text("Menu")),
+            ListTile(
+              title: const Text("Booking"), 
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ReservationScreen(storeId: widget.storeId)))
+            )
+          ]
+        )
+      ),
       body: Row(
         children: [
-          // Left: Menu
+          // Left: Menu Grid
           Expanded(
             flex: 2,
             child: GridView.builder(
               padding: const EdgeInsets.all(10),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, childAspectRatio: 1.5, crossAxisSpacing: 10, mainAxisSpacing: 10),
-              itemCount: _menu.fold(0, (sum, cat) => sum + (cat['items'] as List).length),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3, 
+                childAspectRatio: 1.5,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10
+              ),
+              // [FIX 1] 타입 명시: int sum
+              itemCount: _menu.fold<int>(0, (int sum, dynamic cat) => sum + (cat['items'] as List).length),
               itemBuilder: (ctx, i) {
-                // Flatten Logic (간소화)
                 var allItems = [];
                 for(var cat in _menu) allItems.addAll(cat['items']);
                 final p = allItems[i];
                 return Card(
-                  color: Colors.white,
                   elevation: 2,
                   child: InkWell(
                     onTap: () => context.read<CartProvider>().addToCart(p['id'], p['name'], p['price']),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(p['name'], style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 5),
-                        Text("${currency.format(p['price'])}원", style: const TextStyle(color: Colors.blue)),
+                        Text(p['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                        Text("${currency.format(p['price'])}원")
                       ],
                     ),
                   ),
@@ -130,23 +139,31 @@ class _PosScreenV3State extends State<PosScreenV3> {
           // Right: Cart
           Expanded(
             flex: 1,
-            child: Container(
-              color: Colors.grey[100],
-              child: Column(
+            child: Consumer<CartProvider>(
+              builder: (ctx, cart, _) => Column(
                 children: [
                   Expanded(
-                    child: Consumer<CartProvider>(
-                      builder: (ctx, cart, _) => ListView.builder(
-                        itemCount: cart.items.length,
-                        itemBuilder: (ctx, i) {
-                          final item = cart.items[i];
-                          return ListTile(
-                            title: Text(item.name),
-                            subtitle: Text("${currency.format(item.price)} x ${item.quantity}"),
-                            trailing: Text(currency.format(item.total)),
-                          );
-                        }
-                      )
+                    child: ListView.builder(
+                      itemCount: cart.items.length,
+                      itemBuilder: (ctx, i) {
+                        final item = cart.items[i];
+                        // [FIX 2] item.total 대신 직접 계산
+                        final itemTotal = item.price * item.quantity;
+                        return ListTile(
+                          title: Text(item.name),
+                          subtitle: Text("${currency.format(item.price)} x ${item.quantity}"),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(currency.format(itemTotal)),
+                              IconButton(
+                                icon: const Icon(Icons.remove_circle, color: Colors.red),
+                                onPressed: () => cart.removeFromCart(i)
+                              )
+                            ],
+                          ),
+                        );
+                      }
                     )
                   ),
                   Container(
@@ -154,32 +171,25 @@ class _PosScreenV3State extends State<PosScreenV3> {
                     color: Colors.white,
                     child: Column(
                       children: [
-                        Consumer<CartProvider>(builder: (ctx, cart, _) => 
-                          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                            const Text("합계 금액", style: TextStyle(fontSize: 20)),
-                            Text("${currency.format(cart.totalAmount)}원", style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.red))
-                          ])
-                        ),
-                        const SizedBox(height: 15),
+                        Text("Total: ${currency.format(cart.totalAmount)}", style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 10),
                         SizedBox(
                           width: double.infinity,
-                          height: 60,
-                          child: ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue[800]),
-                            icon: const Icon(Icons.payment, color: Colors.white),
-                            label: const Text("결제하기", style: TextStyle(fontSize: 20, color: Colors.white)),
-                            onPressed: _showPaymentModal, // 결제 모달 호출
-                          ),
+                          height: 50,
+                          child: ElevatedButton(
+                            onPressed: _showPaymentModal, 
+                            child: const Text("PAY")
+                          )
                         )
                       ],
                     ),
                   )
                 ],
-              ),
-            ),
+              )
+            )
           )
-        ]
-      )
+        ],
+      ),
     );
   }
 }

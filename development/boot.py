@@ -28,8 +28,18 @@ def run_migrations():
         print("[!] DB Migration failed.")
         sys.exit(1)
 
+def seed_data():
+    print(f"[*] [Step 3] Seeding Initial Data...")
+    seed_script = BASE_DIR / "scripts" / "seed_commerce_data.py"
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(BASE_DIR)
+    try:
+        subprocess.run([sys.executable, str(seed_script)], env=env, check=True)
+    except subprocess.CalledProcessError:
+        print("[!] Data seeding failed (may already exist).")
+
 def run_server():
-    print(f"[*] [Step 3] Starting TG-SYSTEM Kernel...")
+    print(f"[*] [Step 4] Starting TG-SYSTEM Kernel...")
     env = os.environ.copy()
     env["PYTHONPATH"] = str(BASE_DIR)
     try:
@@ -47,7 +57,8 @@ if __name__ == "__main__":
     
     install_dependencies()
     run_migrations()
-    
+    seed_data()
+
     if mode == "setup":
         print("[+] Setup Complete. Exiting...")
         sys.exit(0)

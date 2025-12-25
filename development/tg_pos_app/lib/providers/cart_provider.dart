@@ -12,8 +12,6 @@ class CartItem {
     required this.price,
     this.quantity = 1,
   });
-
-  int get total => price * quantity;
 }
 
 class CartProvider with ChangeNotifier {
@@ -22,15 +20,13 @@ class CartProvider with ChangeNotifier {
   List<CartItem> get items => _items;
 
   int get totalAmount {
-    return _items.fold(0, (sum, item) => sum + item.total);
+    return _items.fold(0, (sum, item) => sum + (item.price * item.quantity));
   }
 
   void addToCart(int id, String name, int price) {
-    // 이미 있는 상품인지 확인
-    final existingIndex = _items.indexWhere((item) => item.productId == id);
-    
-    if (existingIndex >= 0) {
-      _items[existingIndex].quantity++;
+    final index = _items.indexWhere((item) => item.productId == id);
+    if (index >= 0) {
+      _items[index].quantity++;
     } else {
       _items.add(CartItem(productId: id, name: name, price: price));
     }
@@ -42,7 +38,7 @@ class CartProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  void clearCart() {
+  void clear() {
     _items.clear();
     notifyListeners();
   }
