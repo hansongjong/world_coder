@@ -25,7 +25,7 @@ class _S extends State<PosScreenV3> {
     final cur = NumberFormat("#,###", "ko_KR");
     return Scaffold(appBar: AppBar(title: const Text("TG-POS"), actions: [IconButton(icon: const Icon(Icons.list), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ReservationScreen(storeId: widget.storeId))))]),
       body: Row(children: [
-        Expanded(flex: 2, child: GridView.builder(padding: const EdgeInsets.all(10), gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, childAspectRatio: 1.5), itemCount: _m.fold(0, (s, c) => s + (c['items'] as List).length), itemBuilder: (ctx, i) {
+        Expanded(flex: 2, child: GridView.builder(padding: const EdgeInsets.all(10), gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, childAspectRatio: 1.5), itemCount: _m.fold<int>(0, (int s, c) => s + (c['items'] as List).length), itemBuilder: (ctx, i) {
           var all = []; for(var c in _m) all.addAll(c['items']); final p = all[i];
           return Card(child: InkWell(onTap: () => context.read<CartProvider>().addToCart(p['id'], p['name'], p['price']), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Text(p['name']), Text("${cur.format(p['price'])}원")])));
         })),

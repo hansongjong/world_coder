@@ -11,7 +11,12 @@
       "Bash(set PYTHONPATH=%CD%)",
       "Bash(set \"PYTHONPATH=D:\\\\python_projects\\\\world_coder\\\\development\")",
       "Bash($env:PYTHONPATH=\"D:\\\\python_projects\\\\world_coder\\\\development\")",
-      "Bash(PYTHONPATH=/d/python_projects/world_coder/development python:*)"
+      "Bash(PYTHONPATH=/d/python_projects/world_coder/development python:*)",
+      "Bash(git push:*)",
+      "Bash(flutter run:*)",
+      "Bash(flutter create:*)",
+      "Bash(flutter clean:*)",
+      "Bash(flutter pub get:*)"
     ]
   }
 }
