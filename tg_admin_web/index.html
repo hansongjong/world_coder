@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>TG-ADMIN Dashboard</title>
+    <script src="config.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 250px;
+            height: 100vh;
+            background: linear-gradient(180deg, #1e3a5f 0%, #16213e 100%);
+            color: white;
+            padding: 20px 0;
+            z-index: 100;
+        }
+        .sidebar-header {
+            padding: 0 20px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 20px;
+        }
+        .sidebar-header h1 {
+            font-size: 1.3rem;
+            color: #e94560;
+        }
+        .sidebar-header .store-name {
+            font-size: 0.9rem;
+            color: #94a3b8;
+            margin-top: 5px;
+        }
+        .nav-menu {
+            list-style: none;
+        }
+        .nav-menu li a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 20px;
+            color: #94a3b8;
+            text-decoration: none;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+        .nav-menu li a:hover,
+        .nav-menu li a.active {
+            background: rgba(255,255,255,0.05);
+            color: white;
+            border-left-color: #e94560;
+        }
+        .nav-menu li a .icon {
+            font-size: 1.2rem;
+            width: 24px;
+            text-align: center;
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: 250px;
+            padding: 20px 30px;
+        }
+
+        /* Top Bar */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+        .page-title {
+            font-size: 1.6rem;
+            color: #1e3a5f;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .user-info .avatar {
+            width: 40px;
+            height: 40px;
+            background: #e94560;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        /* Dashboard Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .stat-card .label {
+            color: #64748b;
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+        }
+        .stat-card .value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #1e3a5f;
+        }
+        .stat-card .change {
+            font-size: 0.85rem;
+            margin-top: 5px;
+        }
+        .stat-card .change.up { color: #22c55e; }
+        .stat-card .change.down { color: #ef4444; }
+
+        /* Cards */
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 20px;
+        }
+        .card-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .card-header h3 {
+            font-size: 1.1rem;
+            color: #1e3a5f;
+        }
+        .card-body {
+            padding: 20px;
+        }
+
+        /* Tables */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .data-table th,
+        .data-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .data-table th {
+            background: #f8fafc;
+            font-weight: 600;
+            color: #64748b;
+            font-size: 0.85rem;
+        }
+        .data-table tbody tr:hover {
+            background: #f8fafc;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: #e94560;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #d63d56;
+        }
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #475569;
+        }
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 0.8rem;
+        }
+
+        /* Badge */
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-success { background: #dcfce7; color: #166534; }
+        .badge-warning { background: #fef3c7; color: #92400e; }
+        .badge-danger { background: #fee2e2; color: #991b1b; }
+        .badge-info { background: #dbeafe; color: #1e40af; }
+
+        /* Grid Layout */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        /* Section Visibility */
+        .section { display: none; }
+        .section.active { display: block; }
+
+        /* Form */
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #475569;
+        }
+        .form-control {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 0.95rem;
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: #e94560;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal {
+            background: white;
+            border-radius: 12px;
+            width: 500px;
+            max-width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-body {
+            padding: 20px;
+        }
+        .modal-footer {
+            padding: 15px 20px;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #64748b;
+        }
+
+        /* Product List */
+        .product-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 12px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .product-item:last-child { border-bottom: none; }
+        .product-img {
+            width: 50px;
+            height: 50px;
+            background: #f1f5f9;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+        .product-info {
+            flex: 1;
+        }
+        .product-info .name {
+            font-weight: 500;
+            color: #1e3a5f;
+        }
+        .product-info .price {
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+        .product-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        /* Inventory Alert */
+        .alert-row {
+            background: #fef2f2;
+        }
+
+        /* Chart Placeholder */
+        .chart-placeholder {
+            height: 250px;
+            background: #f8fafc;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #94a3b8;
+        }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #64748b;
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h1>TG-ADMIN</h1>
+            <div class="store-name" id="storeName">Loading...</div>
+        </div>
+        <ul class="nav-menu">
+            <li><a href="#" class="active" data-section="dashboard"><span class="icon">📊</span> 대시보드</a></li>
+            <li><a href="#" data-section="products"><span class="icon">🍔</span> 상품 관리</a></li>
+            <li><a href="#" data-section="inventory"><span class="icon">📦</span> 재고 관리</a></li>
+            <li><a href="#" data-section="orders"><span class="icon">🧾</span> 주문 내역</a></li>
+            <li><a href="#" data-section="members"><span class="icon">👥</span> 회원 관리</a></li>
+            <li><a href="#" data-section="staff"><span class="icon">👤</span> 직원 관리</a></li>
+            <li><a href="#" data-section="settings"><span class="icon">⚙️</span> 매장 설정</a></li>
+        </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="top-bar">
+            <h2 class="page-title" id="pageTitle">대시보드</h2>
+            <div class="user-info">
+                <span id="userName">관리자</span>
+                <div class="avatar" id="userAvatar">A</div>
+            </div>
+        </div>
+
+        <!-- Dashboard Section -->
+        <div class="section active" id="section-dashboard">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="label">오늘 매출</div>
+                    <div class="value" id="todaySales">₩0</div>
+                    <div class="change up" id="salesChange">+0%</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">오늘 주문</div>
+                    <div class="value" id="todayOrders">0건</div>
+                    <div class="change up" id="ordersChange">+0%</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">신규 회원</div>
+                    <div class="value" id="newMembers">0명</div>
+                    <div class="change" id="membersChange">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">재고 부족</div>
+                    <div class="value" id="lowStockCount" style="color: #ef4444;">0개</div>
+                    <div class="change">즉시 확인 필요</div>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>시간대별 매출</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-placeholder" id="hourlyChart">
+                            차트 로딩중...
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <h3>인기 상품 TOP 5</h3>
+                    </div>
+                    <div class="card-body">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>순위</th>
+                                    <th>상품명</th>
+                                    <th>판매량</th>
+                                    <th>매출</th>
+                                </tr>
+                            </thead>
+                            <tbody id="topProducts">
+                                <tr><td colspan="4" class="loading">로딩중...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>최근 주문</h3>
+                    <a href="#" data-section="orders" class="btn btn-secondary btn-sm">전체보기</a>
+                </div>
+                <div class="card-body">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>주문번호</th>
+                                <th>테이블</th>
+                                <th>금액</th>
+                                <th>결제수단</th>
+                                <th>상태</th>
+                                <th>시간</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recentOrders">
+                            <tr><td colspan="6" class="loading">로딩중...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Products Section -->
+        <div class="section" id="section-products">
+            <div class="card">
+                <div class="card-header">
+                    <h3>상품 목록</h3>
+                    <button class="btn btn-primary" onclick="openProductModal()">+ 상품 추가</button>
+                </div>
+                <div class="card-body">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>상품명</th>
+                                <th>카테고리</th>
+                                <th>가격</th>
+                                <th>상태</th>
+                                <th>관리</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productList">
+                            <tr><td colspan="5" class="loading">로딩중...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Inventory Section -->
+        <div class="section" id="section-inventory">
+            <div class="card">
+                <div class="card-header">
+                    <h3>재고 현황</h3>
+                    <button class="btn btn-primary" onclick="openInventoryModal()">+ 입고 등록</button>
+                </div>
+                <div class="card-body">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>품목명</th>
+                                <th>현재 수량</th>
+                                <th>안전 재고</th>
+                                <th>단위</th>
+                                <th>상태</th>
+                                <th>최종 수정</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventoryList">
+                            <tr><td colspan="6" class="loading">로딩중...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Orders Section -->
+        <div class="section" id="section-orders">
+            <div class="card">
+                <div class="card-header">
+                    <h3>주문 내역</h3>
+                    <div>
+                        <input type="date" id="orderDateFilter" class="form-control" style="width: auto; display: inline-block;">
+                        <button class="btn btn-secondary" onclick="loadOrders()">검색</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>주문번호</th>
+                                <th>테이블</th>
+                                <th>상품</th>
+                                <th>금액</th>
+                                <th>결제</th>
+                                <th>상태</th>
+                                <th>일시</th>
+                            </tr>
+                        </thead>
+                        <tbody id="orderList">
+                            <tr><td colspan="7" class="loading">로딩중...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Members Section -->
+        <div class="section" id="section-members">
+            <div class="card">
+                <div class="card-header">
+                    <h3>회원 목록</h3>
+                </div>
+                <div class="card-body">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>회원번호</th>
+                                <th>전화번호</th>
+                                <th>포인트</th>
+                                <th>누적 적립</th>
+                                <th>최근 방문</th>
+                            </tr>
+                        </thead>
+                        <tbody id="memberList">
+                            <tr><td colspan="5" class="loading">로딩중...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Staff Section -->
+        <div class="section" id="section-staff">
+            <div class="card">
+                <div class="card-header">
+                    <h3>직원 목록</h3>
+                    <button class="btn btn-primary" onclick="openStaffModal()">+ 직원 추가</button>
+                </div>
+                <div class="card-body">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>이름</th>
+                                <th>아이디</th>
+                                <th>권한</th>
+                                <th>상태</th>
+                                <th>관리</th>
+                            </tr>
+                        </thead>
+                        <tbody id="staffList">
+                            <tr><td colspan="5" class="loading">로딩중...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Section -->
+        <div class="section" id="section-settings">
+            <div class="card">
+                <div class="card-header">
+                    <h3>매장 설정</h3>
+                </div>
+                <div class="card-body">
+                    <form id="storeSettingsForm">
+                        <div class="form-group">
+                            <label>매장명</label>
+                            <input type="text" class="form-control" id="settingStoreName">
+                        </div>
+                        <div class="form-group">
+                            <label>주소</label>
+                            <input type="text" class="form-control" id="settingAddress">
+                        </div>
+                        <div class="form-group">
+                            <label>전화번호</label>
+                            <input type="text" class="form-control" id="settingPhone">
+                        </div>
+                        <div class="form-group">
+                            <label>영업 시작 시간</label>
+                            <input type="time" class="form-control" id="settingOpenTime">
+                        </div>
+                        <div class="form-group">
+                            <label>영업 종료 시간</label>
+                            <input type="time" class="form-control" id="settingCloseTime">
+                        </div>
+                        <button type="submit" class="btn btn-primary">저장</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Modal -->
+    <div class="modal-overlay" id="productModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="productModalTitle">상품 추가</h3>
+                <button class="close-btn" onclick="closeProductModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="productForm">
+                    <input type="hidden" id="productId">
+                    <div class="form-group">
+                        <label>상품명</label>
+                        <input type="text" class="form-control" id="productName" required>
+                    </div>
+                    <div class="form-group">
+                        <label>카테고리</label>
+                        <select class="form-control" id="productCategory"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>가격</label>
+                        <input type="number" class="form-control" id="productPrice" required>
+                    </div>
+                    <div class="form-group">
+                        <label>설명</label>
+                        <textarea class="form-control" id="productDesc" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeProductModal()">취소</button>
+                <button class="btn btn-primary" onclick="saveProduct()">저장</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inventory Modal -->
+    <div class="modal-overlay" id="inventoryModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>입고 등록</h3>
+                <button class="close-btn" onclick="closeInventoryModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="inventoryForm">
+                    <div class="form-group">
+                        <label>품목명</label>
+                        <input type="text" class="form-control" id="invItemName" required>
+                    </div>
+                    <div class="form-group">
+                        <label>수량 변화 (+입고 / -사용)</label>
+                        <input type="number" class="form-control" id="invChangeQty" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeInventoryModal()">취소</button>
+                <button class="btn btn-primary" onclick="saveInventory()">저장</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = CONFIG.API_BASE;
+        let STORE_ID = 1;
+        let currentUser = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            // Check auth
+            const token = localStorage.getItem('token');
+            const storeId = localStorage.getItem('store_id');
+            const storeName = localStorage.getItem('store_name');
+            const userName = localStorage.getItem('user_name');
+
+            if (storeId) STORE_ID = parseInt(storeId);
+            if (storeName) document.getElementById('storeName').textContent = storeName;
+            if (userName) {
+                document.getElementById('userName').textContent = userName;
+                document.getElementById('userAvatar').textContent = userName.charAt(0).toUpperCase();
+            }
+
+            // Set today's date for order filter
+            document.getElementById('orderDateFilter').value = new Date().toISOString().split('T')[0];
+
+            // Load dashboard data
+            loadDashboard();
+
+            // Navigation
+            document.querySelectorAll('.nav-menu a').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const section = e.target.closest('a').dataset.section;
+                    showSection(section);
+                });
+            });
+        });
+
+        // Show section
+        function showSection(sectionName) {
+            // Update nav
+            document.querySelectorAll('.nav-menu a').forEach(a => a.classList.remove('active'));
+            document.querySelector(`.nav-menu a[data-section="${sectionName}"]`).classList.add('active');
+
+            // Update title
+            const titles = {
+                'dashboard': '대시보드',
+                'products': '상품 관리',
+                'inventory': '재고 관리',
+                'orders': '주문 내역',
+                'members': '회원 관리',
+                'staff': '직원 관리',
+                'settings': '매장 설정'
+            };
+            document.getElementById('pageTitle').textContent = titles[sectionName] || sectionName;
+
+            // Show section
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.getElementById(`section-${sectionName}`).classList.add('active');
+
+            // Load data
+            switch(sectionName) {
+                case 'dashboard': loadDashboard(); break;
+                case 'products': loadProducts(); break;
+                case 'inventory': loadInventory(); break;
+                case 'orders': loadOrders(); break;
+                case 'members': loadMembers(); break;
+                case 'staff': loadStaff(); break;
+                case 'settings': loadSettings(); break;
+            }
+        }
+
+        // Format currency
+        function formatCurrency(amount) {
+            return '₩' + (amount || 0).toLocaleString();
+        }
+
+        // Get status badge
+        function getStatusBadge(status) {
+            const badges = {
+                'paid': '<span class="badge badge-info">결제완료</span>',
+                'preparing': '<span class="badge badge-warning">조리중</span>',
+                'ready': '<span class="badge badge-success">완료</span>',
+                'completed': '<span class="badge badge-success">완료</span>',
+                'canceled': '<span class="badge badge-danger">취소</span>',
+                'pending': '<span class="badge badge-warning">대기</span>'
+            };
+            return badges[status] || status;
+        }
+
+        // Load Dashboard
+        async function loadDashboard() {
+            try {
+                const today = new Date().toISOString().split('T')[0];
+
+                // Load stats in parallel
+                const [statsRes, rankRes, ordersRes, inventoryRes] = await Promise.all([
+                    fetch(`${API_BASE}/stats/range?store_id=${STORE_ID}&start_date=${today}&end_date=${today}`),
+                    fetch(`${API_BASE}/stats/products/rank?store_id=${STORE_ID}&limit=5`),
+                    fetch(`${API_BASE}/orders/history/${STORE_ID}?limit=5`),
+                    fetch(`${API_BASE}/inventory/list/${STORE_ID}`)
+                ]);
+
+                const stats = await statsRes.json();
+                const rank = await rankRes.json();
+                const orders = await ordersRes.json();
+                const inventory = await inventoryRes.json();
+
+                // Update stats
+                document.getElementById('todaySales').textContent = formatCurrency(stats.total_revenue);
+                document.getElementById('todayOrders').textContent = (stats.order_count || 0) + '건';
+
+                // Low stock count
+                const lowStock = inventory.filter(i => i.low_stock);
+                document.getElementById('lowStockCount').textContent = lowStock.length + '개';
+
+                // Top products
+                const topProducts = document.getElementById('topProducts');
+                if (rank.length === 0) {
+                    topProducts.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#94a3b8;">데이터 없음</td></tr>';
+                } else {
+                    topProducts.innerHTML = rank.map((p, i) => `
+                        <tr>
+                            <td>${i + 1}</td>
+                            <td>${p.product_name}</td>
+                            <td>${p.total_quantity}개</td>
+                            <td>${formatCurrency(p.total_revenue)}</td>
+                        </tr>
+                    `).join('');
+                }
+
+                // Recent orders
+                const recentOrders = document.getElementById('recentOrders');
+                if (orders.orders.length === 0) {
+                    recentOrders.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#94a3b8;">데이터 없음</td></tr>';
+                } else {
+                    recentOrders.innerHTML = orders.orders.map(o => `
+                        <tr>
+                            <td>#${o.id.substring(0, 8)}</td>
+                            <td>${o.table || '-'}</td>
+                            <td>${formatCurrency(o.total)}</td>
+                            <td>${o.payment_method || '-'}</td>
+                            <td>${getStatusBadge(o.status)}</td>
+                            <td>${new Date(o.created_at).toLocaleTimeString('ko-KR', {hour: '2-digit', minute: '2-digit'})}</td>
+                        </tr>
+                    `).join('');
+                }
+
+                // Simple hourly chart (text-based)
+                const hourlyRes = await fetch(`${API_BASE}/stats/hourly?store_id=${STORE_ID}&date=${today}`);
+                const hourly = await hourlyRes.json();
+                const chartDiv = document.getElementById('hourlyChart');
+
+                if (hourly.length === 0) {
+                    chartDiv.textContent = '오늘 데이터 없음';
+                } else {
+                    const maxRevenue = Math.max(...hourly.map(h => h.revenue));
+                    chartDiv.innerHTML = `
+                        <div style="width:100%;height:100%;display:flex;align-items:flex-end;justify-content:space-around;padding:10px;">
+                            ${hourly.map(h => {
+                                const height = maxRevenue > 0 ? (h.revenue / maxRevenue * 180) : 0;
+                                return `
+                                    <div style="text-align:center;">
+                                        <div style="background:#e94560;width:30px;height:${height}px;border-radius:4px 4px 0 0;margin-bottom:5px;"></div>
+                                        <div style="font-size:0.7rem;color:#64748b;">${h.hour}시</div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    `;
+                }
+
+            } catch(e) {
+                console.error('Dashboard error:', e);
+            }
+        }
+
+        // Load Products
+        async function loadProducts() {
+            try {
+                const [productsRes, categoriesRes] = await Promise.all([
+                    fetch(`${API_BASE}/products/list/${STORE_ID}?include_soldout=true`),
+                    fetch(`${API_BASE}/products/categories/${STORE_ID}`)
+                ]);
+                const products = await productsRes.json();
+                const categories = await categoriesRes.json();
+
+                // Populate category select
+                const catSelect = document.getElementById('productCategory');
+                catSelect.innerHTML = categories.map(c =>
+                    `<option value="${c.id}">${c.name}</option>`
+                ).join('');
+
+                const tbody = document.getElementById('productList');
+                if (products.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#94a3b8;">등록된 상품이 없습니다</td></tr>';
+                } else {
+                    tbody.innerHTML = products.map(p => `
+                        <tr>
+                            <td>${p.name}</td>
+                            <td>${categories.find(c => c.id === p.category_id)?.name || '-'}</td>
+                            <td>${formatCurrency(p.price)}</td>
+                            <td>${p.is_soldout ? '<span class="badge badge-danger">품절</span>' : '<span class="badge badge-success">판매중</span>'}</td>
+                            <td>
+                                <button class="btn btn-secondary btn-sm" onclick="editProduct(${p.id})">수정</button>
+                                <button class="btn btn-secondary btn-sm" onclick="toggleSoldout(${p.id}, ${!p.is_soldout})">${p.is_soldout ? '판매재개' : '품절처리'}</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch(e) {
+                console.error('Products error:', e);
+            }
+        }
+
+        // Load Inventory
+        async function loadInventory() {
+            try {
+                const res = await fetch(`${API_BASE}/inventory/list/${STORE_ID}`);
+                const items = await res.json();
+
+                const tbody = document.getElementById('inventoryList');
+                if (items.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#94a3b8;">등록된 재고가 없습니다</td></tr>';
+                } else {
+                    tbody.innerHTML = items.map(i => `
+                        <tr class="${i.low_stock ? 'alert-row' : ''}">
+                            <td>${i.item_name}</td>
+                            <td>${i.current_qty}</td>
+                            <td>${i.safety_stock}</td>
+                            <td>${i.unit}</td>
+                            <td>${i.low_stock ? '<span class="badge badge-danger">부족</span>' : '<span class="badge badge-success">정상</span>'}</td>
+                            <td>${i.last_updated || '-'}</td>
+                        </tr>
+                    `).join('');
+                }
+            } catch(e) {
+                console.error('Inventory error:', e);
+            }
+        }
+
+        // Load Orders
+        async function loadOrders() {
+            try {
+                const date = document.getElementById('orderDateFilter').value;
+                const res = await fetch(`${API_BASE}/orders/history/${STORE_ID}?date=${date}&limit=100`);
+                const data = await res.json();
+
+                const tbody = document.getElementById('orderList');
+                if (data.orders.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#94a3b8;">주문 내역이 없습니다</td></tr>';
+                } else {
+                    tbody.innerHTML = data.orders.map(o => `
+                        <tr>
+                            <td>#${o.id.substring(0, 8)}</td>
+                            <td>${o.table || '-'}</td>
+                            <td>${o.items.map(i => i.name).join(', ')}</td>
+                            <td>${formatCurrency(o.total)}</td>
+                            <td>${o.payment_method || '-'}</td>
+                            <td>${getStatusBadge(o.status)}</td>
+                            <td>${new Date(o.created_at).toLocaleString('ko-KR')}</td>
+                        </tr>
+                    `).join('');
+                }
+            } catch(e) {
+                console.error('Orders error:', e);
+            }
+        }
+
+        // Load Members
+        async function loadMembers() {
+            try {
+                const res = await fetch(`${API_BASE}/membership/list/${STORE_ID}`);
+                const members = await res.json();
+
+                const tbody = document.getElementById('memberList');
+                if (!members || members.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#94a3b8;">등록된 회원이 없습니다</td></tr>';
+                } else {
+                    tbody.innerHTML = members.map(m => `
+                        <tr>
+                            <td>${m.id}</td>
+                            <td>${m.phone}</td>
+                            <td>${m.current_points?.toLocaleString() || 0}P</td>
+                            <td>${m.total_accumulated?.toLocaleString() || 0}P</td>
+                            <td>${m.last_visit || '-'}</td>
+                        </tr>
+                    `).join('');
+                }
+            } catch(e) {
+                console.error('Members error:', e);
+                document.getElementById('memberList').innerHTML = '<tr><td colspan="5" style="text-align:center;color:#94a3b8;">회원 목록을 불러올 수 없습니다</td></tr>';
+            }
+        }
+
+        // Load Staff
+        async function loadStaff() {
+            try {
+                const res = await fetch(`${API_BASE}/hr/employees/${STORE_ID}`);
+                const staff = await res.json();
+
+                const tbody = document.getElementById('staffList');
+                if (!staff || staff.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#94a3b8;">등록된 직원이 없습니다</td></tr>';
+                } else {
+                    tbody.innerHTML = staff.map(s => `
+                        <tr>
+                            <td>${s.name}</td>
+                            <td>${s.username || '-'}</td>
+                            <td>${s.role || '-'}</td>
+                            <td><span class="badge badge-success">활성</span></td>
+                            <td>
+                                <button class="btn btn-secondary btn-sm">수정</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch(e) {
+                console.error('Staff error:', e);
+                document.getElementById('staffList').innerHTML = '<tr><td colspan="5" style="text-align:center;color:#94a3b8;">직원 목록을 불러올 수 없습니다</td></tr>';
+            }
+        }
+
+        // Load Settings
+        async function loadSettings() {
+            try {
+                const res = await fetch(`${API_BASE}/store/config/${STORE_ID}`);
+                const config = await res.json();
+
+                document.getElementById('settingStoreName').value = config.store_name || '';
+                document.getElementById('settingAddress').value = config.address || '';
+                document.getElementById('settingPhone').value = config.phone || '';
+                document.getElementById('settingOpenTime').value = config.open_time || '09:00';
+                document.getElementById('settingCloseTime').value = config.close_time || '22:00';
+            } catch(e) {
+                console.error('Settings error:', e);
+            }
+        }
+
+        // Product Modal
+        function openProductModal(product = null) {
+            document.getElementById('productModal').classList.add('active');
+            document.getElementById('productModalTitle').textContent = product ? '상품 수정' : '상품 추가';
+            document.getElementById('productForm').reset();
+            if (product) {
+                document.getElementById('productId').value = product.id;
+                document.getElementById('productName').value = product.name;
+                document.getElementById('productCategory').value = product.category_id;
+                document.getElementById('productPrice').value = product.price;
+                document.getElementById('productDesc').value = product.description || '';
+            }
+        }
+
+        function closeProductModal() {
+            document.getElementById('productModal').classList.remove('active');
+        }
+
+        async function saveProduct() {
+            const id = document.getElementById('productId').value;
+            const data = {
+                store_id: STORE_ID,
+                name: document.getElementById('productName').value,
+                category_id: parseInt(document.getElementById('productCategory').value),
+                price: parseInt(document.getElementById('productPrice').value),
+                description: document.getElementById('productDesc').value
+            };
+
+            try {
+                const url = id ? `${API_BASE}/products/${id}` : `${API_BASE}/products/`;
+                const method = id ? 'PUT' : 'POST';
+                await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                closeProductModal();
+                loadProducts();
+            } catch(e) {
+                alert('저장 실패');
+            }
+        }
+
+        async function editProduct(id) {
+            try {
+                const res = await fetch(`${API_BASE}/products/${id}`);
+                const product = await res.json();
+                openProductModal(product);
+            } catch(e) {
+                alert('상품 정보를 불러올 수 없습니다');
+            }
+        }
+
+        async function toggleSoldout(id, soldout) {
+            try {
+                await fetch(`${API_BASE}/products/${id}/soldout`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ is_soldout: soldout })
+                });
+                loadProducts();
+            } catch(e) {
+                alert('상태 변경 실패');
+            }
+        }
+
+        // Inventory Modal
+        function openInventoryModal() {
+            document.getElementById('inventoryModal').classList.add('active');
+            document.getElementById('inventoryForm').reset();
+        }
+
+        function closeInventoryModal() {
+            document.getElementById('inventoryModal').classList.remove('active');
+        }
+
+        async function saveInventory() {
+            const data = {
+                store_id: STORE_ID,
+                item_name: document.getElementById('invItemName').value,
+                change_qty: parseFloat(document.getElementById('invChangeQty').value)
+            };
+
+            try {
+                await fetch(`${API_BASE}/inventory/update`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                closeInventoryModal();
+                loadInventory();
+            } catch(e) {
+                alert('저장 실패');
+            }
+        }
+
+        // Settings form
+        document.getElementById('storeSettingsForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                await fetch(`${API_BASE}/store/config/${STORE_ID}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        store_name: document.getElementById('settingStoreName').value,
+                        address: document.getElementById('settingAddress').value,
+                        phone: document.getElementById('settingPhone').value,
+                        open_time: document.getElementById('settingOpenTime').value,
+                        close_time: document.getElementById('settingCloseTime').value
+                    })
+                });
+                alert('저장되었습니다');
+            } catch(e) {
+                alert('저장 실패');
+            }
+        });
+    </script>
+</body>
+</html>

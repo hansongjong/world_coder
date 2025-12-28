@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>TG-KITCHEN Display System</title>
+    <script src="config.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #1a1a2e;
+            color: white;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #16213e 0%, #0f3460 100%);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid #e94560;
+        }
+        .header h1 {
+            color: #e94560;
+            font-size: 1.8rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .header-stats {
+            display: flex;
+            gap: 30px;
+        }
+        .stat-item {
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+        .stat-label {
+            font-size: 0.8rem;
+            color: #888;
+        }
+        .stat-item.waiting .stat-value { color: #ef4444; }
+        .stat-item.preparing .stat-value { color: #f59e0b; }
+        .stat-item.ready .stat-value { color: #22c55e; }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 15px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 20px;
+        }
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #22c55e;
+            animation: pulse 2s infinite;
+        }
+        .status-dot.offline { background: #ef4444; animation: none; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Main Grid */
+        .main-container {
+            padding: 20px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        /* Order Card */
+        .order-card {
+            background: linear-gradient(145deg, #16213e, #1a1a2e);
+            border: 2px solid #0f3460;
+            border-radius: 15px;
+            padding: 0;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        .order-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+        }
+
+        /* Status Colors */
+        .order-card.status-paid {
+            border-color: #ef4444;
+            animation: urgent-blink 1s infinite;
+        }
+        .order-card.status-preparing {
+            border-color: #f59e0b;
+        }
+        .order-card.status-ready {
+            border-color: #22c55e;
+        }
+
+        @keyframes urgent-blink {
+            0%, 100% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.5); }
+            50% { box-shadow: 0 0 40px rgba(239, 68, 68, 0.8); }
+        }
+
+        /* Card Header */
+        .card-header {
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #0f3460;
+        }
+        .table-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .table-no {
+            background: #e94560;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+        .order-id {
+            color: #888;
+            font-size: 0.85rem;
+        }
+
+        /* Timer */
+        .timer {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+        .timer-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+        }
+        .timer-value.warning { color: #f59e0b; }
+        .timer-value.danger { color: #ef4444; animation: timer-blink 0.5s infinite; }
+        .timer-label {
+            font-size: 0.7rem;
+            color: #888;
+        }
+
+        @keyframes timer-blink {
+            50% { opacity: 0.5; }
+        }
+
+        /* Items */
+        .card-body {
+            padding: 15px 20px;
+            min-height: 120px;
+        }
+        .items {
+            list-style: none;
+        }
+        .items li {
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            font-size: 1.1rem;
+        }
+        .items li:last-child { border-bottom: none; }
+        .qty {
+            background: #0f3460;
+            color: #facc15;
+            font-weight: bold;
+            min-width: 35px;
+            height: 35px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            margin-right: 12px;
+        }
+
+        /* Card Footer - Actions */
+        .card-footer {
+            padding: 15px 20px;
+            display: flex;
+            gap: 10px;
+        }
+        .btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .btn:hover { transform: scale(1.02); }
+        .btn:active { transform: scale(0.98); }
+
+        .btn-start {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+        }
+        .btn-ready {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+        }
+        .btn-done {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: white;
+        }
+        .btn-cancel {
+            background: #374151;
+            color: #9ca3af;
+            flex: 0.5;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+        .empty-state .icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+
+        /* Sound Toggle */
+        .sound-toggle {
+            background: rgba(0,0,0,0.3);
+            border: none;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .sound-toggle.muted { color: #888; }
+
+        /* Notification */
+        .notification {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: #e94560;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            font-weight: bold;
+            animation: slideIn 0.3s ease;
+            z-index: 1000;
+            box-shadow: 0 4px 20px rgba(233, 69, 96, 0.5);
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>👨‍🍳 KITCHEN DISPLAY</h1>
+        <div class="header-stats">
+            <div class="stat-item waiting">
+                <div class="stat-value" id="countWaiting">0</div>
+                <div class="stat-label">대기중</div>
+            </div>
+            <div class="stat-item preparing">
+                <div class="stat-value" id="countPreparing">0</div>
+                <div class="stat-label">조리중</div>
+            </div>
+            <div class="stat-item ready">
+                <div class="stat-value" id="countReady">0</div>
+                <div class="stat-label">완료</div>
+            </div>
+        </div>
+        <div style="display: flex; gap: 15px; align-items: center;">
+            <button class="sound-toggle" id="soundToggle" onclick="toggleSound()">
+                🔔 알림음
+            </button>
+            <div class="connection-status">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">연결됨</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="grid" id="orderGrid">
+            <div class="empty-state">
+                <div class="icon">🍳</div>
+                <p>주문을 기다리는 중...</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="notification" class="notification" style="display: none;"></div>
+
+    <audio id="alertSound" preload="auto">
+        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleR8YOZnm/9qydSojPZnw/+a9gi8nPJv0/+rCiDQpO535/+7GjTksPJ/9//LKkj0uPaP///XOl0EwPqf///jSmUQyP6r///vVnEczQK3+//7YoEo1Qa/+AAHbokw2QrL9AATepl04Q7T8AAjhqmA5RLb7AAzirnI7Rrj5AhHls3g9R7r3AxXouH5ASLz1Bhjqvn9ASbzzCBzswH9ASrrwCx/uw39CRrrsDCLxxX9CRbfoDSXzx39DRbTjDyn1yH9ERLHeDiz4yX9EQq3ZDy/6yn9EQajUEDL8y39EQKPPETb+zH9DP5zKEjkAzn9DOZbEEzwCz39DNI++FD8E0H9DL4i4FUMHsX9DKoGxFkYJsn9DJHW=" type="audio/wav">
+    </audio>
+
+    <script>
+        const API_BASE = CONFIG.API_BASE;
+        const STORE_ID = 1;
+        const REFRESH_INTERVAL = 3000; // 3초마다 새로고침
+
+        let soundEnabled = true;
+        let previousOrderCount = 0;
+        let orderTimers = {};
+
+        // Load orders
+        async function loadOrders() {
+            try {
+                const res = await fetch(`${API_BASE}/orders/list/${STORE_ID}`);
+                if (!res.ok) throw new Error('API Error');
+
+                const orders = await res.json();
+                updateConnectionStatus(true);
+
+                // Check for new orders
+                if (orders.length > previousOrderCount && previousOrderCount > 0) {
+                    showNotification('🆕 새 주문이 들어왔습니다!');
+                    playSound();
+                }
+                previousOrderCount = orders.length;
+
+                updateStats(orders);
+                renderOrders(orders);
+            } catch(e) {
+                console.error('Error loading orders:', e);
+                updateConnectionStatus(false);
+            }
+        }
+
+        // Update connection status
+        function updateConnectionStatus(connected) {
+            const dot = document.getElementById('statusDot');
+            const text = document.getElementById('statusText');
+            if (connected) {
+                dot.classList.remove('offline');
+                text.textContent = '연결됨';
+            } else {
+                dot.classList.add('offline');
+                text.textContent = '연결 끊김';
+            }
+        }
+
+        // Update stats
+        function updateStats(orders) {
+            const waiting = orders.filter(o => o.status === 'paid').length;
+            const preparing = orders.filter(o => o.status === 'preparing').length;
+            const ready = orders.filter(o => o.status === 'ready').length;
+
+            document.getElementById('countWaiting').textContent = waiting;
+            document.getElementById('countPreparing').textContent = preparing;
+            document.getElementById('countReady').textContent = ready;
+        }
+
+        // Change order status
+        async function changeStatus(orderId, newStatus) {
+            try {
+                await fetch(`${API_BASE}/orders/${orderId}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: newStatus })
+                });
+                loadOrders();
+            } catch(e) {
+                console.error('Error updating status:', e);
+            }
+        }
+
+        // Calculate elapsed time
+        function getElapsedTime(orderTime) {
+            const now = new Date();
+            const [h, m, s] = orderTime.split(':').map(Number);
+            const orderDate = new Date();
+            orderDate.setHours(h, m, s, 0);
+
+            // If order time is in the future, assume it's from yesterday
+            if (orderDate > now) {
+                orderDate.setDate(orderDate.getDate() - 1);
+            }
+
+            const diff = Math.floor((now - orderDate) / 1000);
+            const mins = Math.floor(diff / 60);
+            const secs = diff % 60;
+
+            return { mins, secs, total: diff };
+        }
+
+        // Format timer
+        function formatTimer(mins, secs) {
+            return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+
+        // Get timer class
+        function getTimerClass(totalSeconds) {
+            if (totalSeconds > 600) return 'danger';  // 10분 초과
+            if (totalSeconds > 300) return 'warning'; // 5분 초과
+            return '';
+        }
+
+        // Render orders
+        function renderOrders(orders) {
+            const container = document.getElementById('orderGrid');
+
+            if (orders.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">🍳</div>
+                        <p>주문을 기다리는 중...</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = orders.map(o => {
+                const elapsed = getElapsedTime(o.time);
+                const timerClass = getTimerClass(elapsed.total);
+                const statusClass = `status-${o.status}`;
+
+                let actionButtons = '';
+                if (o.status === 'paid') {
+                    actionButtons = `
+                        <button class="btn btn-start" onclick="changeStatus('${o.id}', 'preparing')">
+                            🔥 조리시작
+                        </button>
+                    `;
+                } else if (o.status === 'preparing') {
+                    actionButtons = `
+                        <button class="btn btn-ready" onclick="changeStatus('${o.id}', 'ready')">
+                            📢 완료알림
+                        </button>
+                    `;
+                } else if (o.status === 'ready') {
+                    actionButtons = `
+                        <button class="btn btn-done" onclick="changeStatus('${o.id}', 'completed')">
+                            ✅ 픽업완료
+                        </button>
+                    `;
+                }
+
+                return `
+                    <div class="order-card ${statusClass}" data-order-id="${o.id}" data-time="${o.time}">
+                        <div class="card-header">
+                            <div class="table-info">
+                                <span class="table-no">${o.table || 'TO-GO'}</span>
+                                <span class="order-id">#${o.id.substring(0, 8)}</span>
+                            </div>
+                            <div class="timer">
+                                <span class="timer-value ${timerClass}">${formatTimer(elapsed.mins, elapsed.secs)}</span>
+                                <span class="timer-label">경과시간</span>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <ul class="items">
+                                ${o.items.map(i => `
+                                    <li>
+                                        <span class="qty">${i.qty}</span>
+                                        ${i.name}
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                        <div class="card-footer">
+                            ${actionButtons}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Update timers every second
+        function updateTimers() {
+            document.querySelectorAll('.order-card').forEach(card => {
+                const orderTime = card.dataset.time;
+                if (!orderTime) return;
+
+                const elapsed = getElapsedTime(orderTime);
+                const timerEl = card.querySelector('.timer-value');
+                if (timerEl) {
+                    timerEl.textContent = formatTimer(elapsed.mins, elapsed.secs);
+                    timerEl.className = 'timer-value ' + getTimerClass(elapsed.total);
+                }
+            });
+        }
+
+        // Toggle sound
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const btn = document.getElementById('soundToggle');
+            btn.textContent = soundEnabled ? '🔔 알림음' : '🔕 음소거';
+            btn.classList.toggle('muted', !soundEnabled);
+        }
+
+        // Play sound
+        function playSound() {
+            if (!soundEnabled) return;
+            try {
+                const audio = document.getElementById('alertSound');
+                audio.currentTime = 0;
+                audio.play().catch(() => {});
+            } catch(e) {}
+        }
+
+        // Show notification
+        function showNotification(message) {
+            const notif = document.getElementById('notification');
+            notif.textContent = message;
+            notif.style.display = 'block';
+            setTimeout(() => {
+                notif.style.display = 'none';
+            }, 3000);
+        }
+
+        // Initialize
+        loadOrders();
+        setInterval(loadOrders, REFRESH_INTERVAL);
+        setInterval(updateTimers, 1000);
+    </script>
+</body>
+</html>

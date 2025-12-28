@@ -109,11 +109,62 @@ GENESIS NETWORK의 서비스 중심 POS 시스템 전담 개발자로서, **Fast
 
 ---
 
+## 시스템 아키텍처 (2025-12-28 확정)
+
+### 매장 내부망 구조 (핵심)
+```
+┌─────────────────────────────────────────────────────┐
+│                   매장 내부망 (LAN)                  │
+│                                                     │
+│      ┌──────────────────┐                           │
+│      │  POS (로컬 서버)  │◄──────────────────────┐  │
+│      │  tg_pos_app      │                        │  │
+│      │  :8080           │                        │  │
+│      └────────┬─────────┘                        │  │
+│               │                                  │  │
+│    ┌──────────┼──────────┬───────────┐          │  │
+│    ▼          ▼          ▼           ▼          │  │
+│  ┌────┐   ┌────────┐  ┌────────┐  ┌────────┐   │  │
+│  │KDS │   │키오스크│  │테이블  │  │테이블  │   │  │
+│  │주방│   │입구    │  │오더 1  │  │오더 2  │...│  │
+│  └────┘   └────────┘  └────────┘  └────────┘   │  │
+└─────────────────────────────────────────────────────┘
+                    │
+                    ▼ (온라인 시)
+           ┌────────────────┐
+           │  AWS 중앙서버   │ ← 결제/정산/동기화만
+           └────────────────┘
+```
+
+### 핵심 원칙
+- **POS = 로컬 서버**: 중앙서버 의존 없이 매장 내부에서 독립 운영
+- **KDS/키오스크/테이블오더 = POS 클라이언트**: 모두 POS에 연결
+- **중앙서버는 결제/정산/동기화만**: 주문 흐름에서 제외
+- **오프라인 우선**: 인터넷 끊겨도 POS 기본 기능 동작
+
+### 배포 구조
+| 컴포넌트 | 배포 위치 | 역할 |
+|----------|-----------|------|
+| `tg_pos_app` | 매장 PC (Flutter) | POS + 로컬 서버 |
+| `tg_kds_web` | Cloudflare Pages | 주방 디스플레이 |
+| `tg_admin_web` | Cloudflare Pages | 관리자 대시보드 |
+| `tg_web_pos` | Cloudflare Pages | 웹 POS (백업용) |
+| Backend API | AWS Lambda + DynamoDB | 중앙 서버 |
+
+---
+
 ## 핵심 파일 위치
 
 ```
-주문 API:     development/src/commerce/api/orders.py
-상품 API:     development/src/commerce/api/products.py
-연동 API:     development/src/commerce/api/sync.py (생성 예정)
-모델:         development/src/commerce/domain/models.py
+# Backend (개발용)
+development/src/commerce/api/orders.py
+development/src/commerce/api/products.py
+development/src/commerce/api/sync.py
+development/src/commerce/domain/models.py
+
+# Frontend (배포용)
+tg_pos_app/          # Flutter 앱 (POS + 로컬서버)
+tg_kds_web/          # KDS 웹
+tg_admin_web/        # 관리자 웹
+tg_web_pos/          # 웹 POS
 ```
