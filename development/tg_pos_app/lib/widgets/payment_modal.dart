@@ -1,117 +1,405 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
-enum PaymentMethod { card, cash, easyPay }
+import '../l10n/app_localizations.dart';
 
 class PaymentModal extends StatefulWidget {
-  final int totalAmount;
-  final Function(String method, int received, int change) onPaymentComplete;
+  final int total;
+  final Function(String, int, int, {int? discountAmount, String? discountType}) onDone;
 
-  const PaymentModal({super.key, required this.totalAmount, required this.onPaymentComplete});
+  const PaymentModal({
+    super.key,
+    required this.total,
+    required this.onDone,
+  });
 
   @override
   State<PaymentModal> createState() => _PaymentModalState();
 }
 
 class _PaymentModalState extends State<PaymentModal> {
-  final currency = NumberFormat("#,###", "ko_KR");
-  final TextEditingController _cashCtrl = TextEditingController();
-  PaymentMethod _selected = PaymentMethod.card;
-  int _change = 0;
+  String _paymentMethod = "CARD";
+  final _receivedController = TextEditingController();
+  final _discountController = TextEditingController();
+  final _currencyFormat = NumberFormat("#,###", "ko_KR");
 
-  void _calculateChange(String value) {
-    int received = int.tryParse(value) ?? 0;
-    setState(() {
-      _change = received - widget.totalAmount;
-    });
+  // Discount options
+  bool _showDiscount = false;
+  String _discountType = "percent"; // "percent" or "amount"
+  int _discountValue = 0;
+
+  int get _discountAmount {
+    if (_discountValue == 0) return 0;
+    if (_discountType == "percent") {
+      return (widget.total * _discountValue / 100).round();
+    }
+    return _discountValue;
   }
 
-  void _submit() {
-    if (_selected == PaymentMethod.cash && _change < 0) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("받은 금액이 부족합니다.")));
+  int get _finalTotal => widget.total - _discountAmount;
+
+  int get _received {
+    if (_paymentMethod == "CASH") {
+      return int.tryParse(_receivedController.text) ?? 0;
+    }
+    return _finalTotal;
+  }
+
+  int get _change => _received - _finalTotal;
+
+  void _processPayment() {
+    if (_paymentMethod == "CASH" && _received < _finalTotal) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('받은 금액이 부족합니다')),
+      );
       return;
     }
-    
-    int received = _selected == PaymentMethod.cash ? int.tryParse(_cashCtrl.text) ?? 0 : widget.totalAmount;
-    String methodStr = _selected == PaymentMethod.card ? "CARD" : (_selected == PaymentMethod.cash ? "CASH" : "EASY_PAY");
-    
-    widget.onPaymentComplete(methodStr, received, _change);
+    widget.onDone(
+      _paymentMethod,
+      _received,
+      _change,
+      discountAmount: _discountAmount > 0 ? _discountAmount : null,
+      discountType: _discountAmount > 0 ? _discountType : null,
+    );
     Navigator.pop(context);
+  }
+
+  void _updateDiscount(String value) {
+    setState(() {
+      _discountValue = int.tryParse(value) ?? 0;
+      if (_discountType == "percent" && _discountValue > 100) {
+        _discountValue = 100;
+        _discountController.text = "100";
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text("결제 수단 선택", style: TextStyle(fontWeight: FontWeight.bold)),
-      content: SizedBox(
-        width: 400,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text("결제 금액: ${currency.format(widget.totalAmount)}원", 
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.blue), textAlign: TextAlign.center),
-            const SizedBox(height: 20),
-            
-            // Payment Methods
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildMethodBtn(PaymentMethod.card, Icons.credit_card, "신용카드"),
-                _buildMethodBtn(PaymentMethod.cash, Icons.money, "현금"),
-                _buildMethodBtn(PaymentMethod.easyPay, Icons.qr_code, "간편결제"),
-              ],
-            ),
-            const SizedBox(height: 20),
+    final l10n = AppLocalizations.of(context);
 
-            // Cash Input Area
-            if (_selected == PaymentMethod.cash) ...[
-              TextField(
-                controller: _cashCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: "받은 금액", border: OutlineInputBorder()),
-                onChanged: _calculateChange,
+    return AlertDialog(
+      title: Text(l10n.get('payment')),
+      content: SizedBox(
+        width: 350,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Total Amount
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  children: [
+                    if (_discountAmount > 0) ...[
+                      Text(
+                        l10n.get('original_price'),
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 12,
+                        ),
+                      ),
+                      Text(
+                        '${_currencyFormat.format(widget.total)}${l10n.get('won')}',
+                        style: TextStyle(
+                          fontSize: 16,
+                          decoration: TextDecoration.lineThrough,
+                          color: Colors.grey[500],
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.red[100],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          '-${_currencyFormat.format(_discountAmount)}${l10n.get('won')} ${l10n.get('discount')}',
+                          style: TextStyle(
+                            color: Colors.red[700],
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                    Text(
+                      l10n.get('total'),
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${_currencyFormat.format(_finalTotal)}${l10n.get('won')}',
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF3B82F6),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 10),
-              Text("거스름돈: ${currency.format(_change)}원", 
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _change < 0 ? Colors.red : Colors.green)),
-            ] else if (_selected == PaymentMethod.card) ...[
-              const Center(child: Text("IC카드를 리더기에 꽂아주세요...", style: TextStyle(color: Colors.grey)))
-            ]
-          ],
+              const SizedBox(height: 16),
+
+              // Discount Toggle
+              InkWell(
+                onTap: () => setState(() => _showDiscount = !_showDiscount),
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey[300]!),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.discount,
+                            color: _showDiscount ? Colors.red : Colors.grey[600],
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            l10n.get('discount'),
+                            style: TextStyle(
+                              color: _showDiscount ? Colors.red : Colors.grey[700],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Icon(
+                        _showDiscount
+                            ? Icons.keyboard_arrow_up
+                            : Icons.keyboard_arrow_down,
+                        color: Colors.grey[600],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Discount Options
+              if (_showDiscount) ...[
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildDiscountTypeButton(
+                        l10n.get('discount_percent'),
+                        "percent",
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildDiscountTypeButton(
+                        l10n.get('discount_amount'),
+                        "amount",
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _discountController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: _discountType == "percent"
+                        ? l10n.get('discount_percent')
+                        : l10n.get('discount_amount'),
+                    border: const OutlineInputBorder(),
+                    suffixText:
+                        _discountType == "percent" ? '%' : l10n.get('won'),
+                  ),
+                  onChanged: _updateDiscount,
+                ),
+              ],
+              const SizedBox(height: 16),
+
+              // Payment Method
+              Text(
+                l10n.get('payment_method'),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildMethodButton(
+                      l10n.get('card'),
+                      Icons.credit_card,
+                      "CARD",
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildMethodButton(
+                      l10n.get('cash'),
+                      Icons.money,
+                      "CASH",
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Cash input
+              if (_paymentMethod == "CASH") ...[
+                TextField(
+                  controller: _receivedController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: l10n.get('received'),
+                    border: const OutlineInputBorder(),
+                    suffixText: l10n.get('won'),
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: 12),
+                if (_received >= _finalTotal)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green[50],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          l10n.get('change'),
+                          style: TextStyle(color: Colors.green[700]),
+                        ),
+                        Text(
+                          '${_currencyFormat.format(_change)}${l10n.get('won')}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                            color: Colors.green[700],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ],
+          ),
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text("취소")),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(l10n.get('cancel')),
+        ),
         ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15)),
-          onPressed: _submit,
-          child: const Text("결제 완료", style: TextStyle(fontSize: 16, color: Colors.white)),
+          onPressed: _processPayment,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF3B82F6),
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          ),
+          child: Text(l10n.get('payment_complete')),
         ),
       ],
     );
   }
 
-  Widget _buildMethodBtn(PaymentMethod method, IconData icon, String label) {
-    bool isSelected = _selected == method;
-    return GestureDetector(
-      onTap: () => setState(() => _selected = method),
+  Widget _buildMethodButton(String label, IconData icon, String value) {
+    final isSelected = _paymentMethod == value;
+    return InkWell(
+      onTap: () => setState(() => _paymentMethod = value),
+      borderRadius: BorderRadius.circular(8),
       child: Container(
-        width: 100,
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.blue[50] : Colors.white,
-          border: Border.all(color: isSelected ? Colors.blue : Colors.grey[300]!, width: 2),
-          borderRadius: BorderRadius.circular(10)
+          color: isSelected ? const Color(0xFF3B82F6) : Colors.grey[100],
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF3B82F6) : Colors.grey[300]!,
+            width: 2,
+          ),
         ),
         child: Column(
           children: [
-            Icon(icon, color: isSelected ? Colors.blue : Colors.grey, size: 30),
-            const SizedBox(height: 5),
-            Text(label, style: TextStyle(color: isSelected ? Colors.blue : Colors.grey, fontWeight: FontWeight.bold))
+            Icon(
+              icon,
+              color: isSelected ? Colors.white : Colors.grey[600],
+              size: 28,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? Colors.white : Colors.grey[600],
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildDiscountTypeButton(String label, String value) {
+    final isSelected = _discountType == value;
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _discountType = value;
+          _discountController.clear();
+          _discountValue = 0;
+        });
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.red[50] : Colors.grey[100],
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected ? Colors.red : Colors.grey[300]!,
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? Colors.red : Colors.grey[600],
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              fontSize: 13,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _receivedController.dispose();
+    _discountController.dispose();
+    super.dispose();
   }
 }

@@ -1,73 +1,210 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../l10n/app_localizations.dart';
 
 class ReceiptDialog extends StatelessWidget {
-  final String orderId;
-  final int totalAmount;
+  final String id;
   final String method;
-  final int received;
-  final int change;
-  final List<dynamic> items; // CartItems
+  final int total;
+  final int rec;
+  final int chg;
+  final List items;
 
   const ReceiptDialog({
     super.key,
-    required this.orderId,
-    required this.totalAmount,
+    required this.id,
+    required this.total,
     required this.method,
-    required this.received,
-    required this.change,
-    required this.items
+    required this.rec,
+    required this.chg,
+    required this.items,
   });
 
   @override
   Widget build(BuildContext context) {
-    final currency = NumberFormat("#,###", "ko_KR");
-    final now = DateFormat("yyyy-MM-dd HH:mm:ss").format(DateTime.now());
+    final l10n = AppLocalizations.of(context);
+    final cur = NumberFormat("#,###", "ko_KR");
 
     return AlertDialog(
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero), // 영수증처럼 각지게
+      title: Row(
+        children: [
+          const Icon(Icons.receipt_long, color: Color(0xFF3B82F6)),
+          const SizedBox(width: 10),
+          Text(l10n.get('order_complete')),
+        ],
+      ),
       content: SizedBox(
-        width: 300,
+        width: 320,
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Center(child: Text("TG-BURGER GANGNAM", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18))),
-            const Center(child: Text("Tel: 02-1234-5678", style: TextStyle(fontSize: 12))),
-            const Divider(thickness: 2, height: 30),
-            Text("주문번호: ${orderId.substring(0, 8)}"),
-            Text("일시: $now"),
+            // Success Icon
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.green[50],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.check_circle,
+                    color: Colors.green[600],
+                    size: 48,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    l10n.get('payment_complete'),
+                    style: TextStyle(
+                      color: Colors.green[700],
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Order Number
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    l10n.get('order_number'),
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
+                  Text(
+                    id.substring(id.length - 8),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Items List
+            Container(
+              constraints: const BoxConstraints(maxHeight: 150),
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: items.length,
+                itemBuilder: (context, index) {
+                  final item = items[index];
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '${item.name} x${item.quantity}',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Text(
+                          '${cur.format(item.price * item.quantity)}${l10n.get('won')}',
+                          style: const TextStyle(fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
             const Divider(),
-            ...items.map((item) => Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text("${item.name} x${item.quantity}"),
-                Text("${currency.format(item.price * item.quantity)}")
-              ],
-            )),
-            const Divider(thickness: 2),
+
+            // Total
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text("합계 금액", style: TextStyle(fontWeight: FontWeight.bold)),
-                Text(currency.format(totalAmount), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))
+                Text(
+                  l10n.get('total'),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                Text(
+                  '${cur.format(total)}${l10n.get('won')}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                    color: Color(0xFF3B82F6),
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: 10),
-            if (method == "CASH") ...[
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text("받은 금액"), Text(currency.format(received))]),
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text("거스름돈"), Text(currency.format(change))]),
+            const SizedBox(height: 8),
+
+            // Payment Method
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  l10n.get('payment_method'),
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
+                Text(
+                  method == 'CARD' ? l10n.get('card') : l10n.get('cash'),
+                  style: const TextStyle(fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
+
+            // Cash details
+            if (method == 'CASH') ...[
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    l10n.get('received'),
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
+                  Text('${cur.format(rec)}${l10n.get('won')}'),
+                ],
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    l10n.get('change'),
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
+                  Text(
+                    '${cur.format(chg)}${l10n.get('won')}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green[700],
+                    ),
+                  ),
+                ],
+              ),
             ],
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text("결제 수단"), Text(method, style: const TextStyle(fontWeight: FontWeight.bold))]),
-            const SizedBox(height: 20),
-            const Center(child: Text("Thank you!", style: TextStyle(fontStyle: FontStyle.italic))),
           ],
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text("닫기")),
-        ElevatedButton(onPressed: () => Navigator.pop(context), child: const Text("출력 (Print)")),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF3B82F6),
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+          ),
+          child: Text(l10n.get('confirm')),
+        ),
       ],
     );
   }
