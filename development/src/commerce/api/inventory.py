@@ -5,7 +5,9 @@ from pydantic import BaseModel
 
 from src.database.engine import get_db
 from src.commerce.domain.models_gap_v2 import InventoryItem
+from src.commerce.domain.models import ProductRecipe
 from src.commerce.services.webhook_sender import webhook_sender
+from src.commerce.services.inventory_service import InventoryService
 
 router = APIRouter(prefix="/inventory", tags=["Commerce: Inventory (SCM)"])
 
@@ -61,4 +63,61 @@ async def update_stock(
 @router.get("/list/{store_id}")
 def get_inventory_list(store_id: int, db: Session = Depends(get_db)):
     """[SCM] 전체 재고 현황"""
-    return db.query(InventoryItem).filter_by(store_id=store_id).all()
+    items = db.query(InventoryItem).filter_by(store_id=store_id).all()
+    return [
+        {
+            "id": item.id,
+            "item_name": item.item_name,
+            "current_qty": item.current_qty,
+            "safety_stock": item.safety_stock,
+            "unit": item.unit,
+            "low_stock": item.current_qty < item.safety_stock,
+            "last_updated": str(item.last_updated) if item.last_updated else None
+        }
+        for item in items
+    ]
+
+
+# =====================================================
+# Recipe (BOM) Management
+# =====================================================
+
+class RecipeCreate(BaseModel):
+    product_id: int
+    inventory_item_id: int
+    quantity_required: float
+    unit: str = "ea"
+
+
+@router.get("/recipe/{product_id}")
+def get_product_recipe(product_id: int, db: Session = Depends(get_db)):
+    """[BOM] 제품 레시피 조회"""
+    inv_service = InventoryService(db)
+    return inv_service.get_recipe(product_id)
+
+
+@router.post("/recipe")
+def set_product_recipe(req: RecipeCreate, db: Session = Depends(get_db)):
+    """[BOM] 제품 레시피 설정 (UPSERT)"""
+    inv_service = InventoryService(db)
+    recipe = inv_service.set_recipe(
+        product_id=req.product_id,
+        inventory_item_id=req.inventory_item_id,
+        quantity=req.quantity_required,
+        unit=req.unit
+    )
+    return {
+        "success": True,
+        "recipe_id": recipe.id,
+        "message": "Recipe saved"
+    }
+
+
+@router.delete("/recipe/{recipe_id}")
+def delete_recipe(recipe_id: int, db: Session = Depends(get_db)):
+    """[BOM] 레시피 삭제"""
+    inv_service = InventoryService(db)
+    success = inv_service.delete_recipe(recipe_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Recipe not found")
+    return {"success": True, "message": "Recipe deleted"}

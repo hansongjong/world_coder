@@ -264,3 +264,22 @@ class Vendor(Base):
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+
+# --- 5. BOM (Bill of Materials - 제품-원재료 매핑) ---
+class ProductRecipe(Base):
+    """
+    제품 레시피 (BOM)
+    예: 아메리카노 1잔 = 원두 20g + 물 200ml
+    """
+    __tablename__ = 'product_recipes'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    product_id = Column(Integer, ForeignKey('com_products.id'), nullable=False)
+    inventory_item_id = Column(Integer, ForeignKey('com_inventory.id'), nullable=False)
+    quantity_required = Column(Float, default=1.0)  # 필요 수량
+    unit = Column(String(10), default="ea")  # 단위
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    product = relationship("Product")

@@ -10,6 +10,7 @@ from src.database.engine import get_db
 from src.commerce.domain.models import Order, OrderItem, Payment, Product, OrderStatus
 from src.commerce.auth.security import get_current_user
 from src.commerce.services.webhook_sender import webhook_sender
+from src.commerce.services.inventory_service import InventoryService
 
 router = APIRouter(prefix="/orders", tags=["Commerce: Orders"])
 
@@ -46,10 +47,11 @@ class RefundRequest(BaseModel):
 # =====================================================
 
 @router.post("/place")
-def place_order(order_req: OrderCreate, db: Session = Depends(get_db)):
-    """[POS] 주문 생성 (할인 적용 가능)"""
+async def place_order(order_req: OrderCreate, db: Session = Depends(get_db)):
+    """[POS] 주문 생성 (할인 적용 + 재고 자동 차감)"""
     total_amount = 0
     db_items = []
+    order_items_for_inventory = []
 
     for item in order_req.items:
         product = db.get(Product, item.product_id)
@@ -65,6 +67,12 @@ def place_order(order_req: OrderCreate, db: Session = Depends(get_db)):
             quantity=item.quantity,
             options=item.options
         ))
+
+        # 재고 차감용 데이터
+        order_items_for_inventory.append({
+            "product_id": item.product_id,
+            "quantity": item.quantity
+        })
 
     # Apply discount
     final_amount = total_amount - (order_req.discount_amount or 0)
@@ -83,12 +91,26 @@ def place_order(order_req: OrderCreate, db: Session = Depends(get_db)):
 
     db.add(new_order)
     db.commit()
+
+    # 재고 자동 차감 (레시피가 있는 경우)
+    inventory_result = None
+    try:
+        inv_service = InventoryService(db)
+        inventory_result = await inv_service.deduct_and_notify(
+            store_id=order_req.store_id,
+            order_items=order_items_for_inventory
+        )
+    except Exception as e:
+        # 재고 차감 실패해도 주문은 진행
+        pass
+
     return {
         "order_id": order_id,
         "subtotal": total_amount,
         "discount": order_req.discount_amount or 0,
         "total_amount": final_amount,
-        "status": "PENDING"
+        "status": "PENDING",
+        "inventory_deducted": len(inventory_result.get("deducted", [])) if inventory_result else 0
     }
 
 # =====================================================
