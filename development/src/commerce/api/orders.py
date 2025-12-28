@@ -9,6 +9,7 @@ from typing import List, Optional
 from src.database.engine import get_db
 from src.commerce.domain.models import Order, OrderItem, Payment, Product, OrderStatus
 from src.commerce.auth.security import get_current_user
+from src.commerce.services.webhook_sender import webhook_sender
 
 router = APIRouter(prefix="/orders", tags=["Commerce: Orders"])
 
@@ -95,7 +96,7 @@ def place_order(order_req: OrderCreate, db: Session = Depends(get_db)):
 # =====================================================
 
 @router.post("/pay/{order_id}")
-def process_payment(
+async def process_payment(
     order_id: str,
     pg_provider: str = "CASH",
     received_amount: int = 0,
@@ -122,6 +123,18 @@ def process_payment(
 
     change = received_amount - order.total_amount if received_amount > 0 else 0
 
+    # TgMain에 ORDER_PAID Webhook 발송
+    await webhook_sender.send_order_paid(
+        order_id=order_id,
+        store_id=order.store_id,
+        total_amount=order.total_amount,
+        payment_method=pg_provider,
+        items=[
+            {"product_name": i.product_name, "quantity": i.quantity, "price": i.unit_price}
+            for i in order.items
+        ]
+    )
+
     return {
         "status": "success",
         "receipt_id": payment.id,
@@ -135,7 +148,7 @@ def process_payment(
 # =====================================================
 
 @router.post("/refund/{order_id}")
-def process_refund(
+async def process_refund(
     order_id: str,
     req: RefundRequest,
     db: Session = Depends(get_db),
@@ -172,6 +185,14 @@ def process_refund(
     )
     db.add(refund_payment)
     db.commit()
+
+    # TgMain에 ORDER_REFUNDED Webhook 발송
+    await webhook_sender.send_order_refunded(
+        order_id=order_id,
+        store_id=order.store_id,
+        refund_amount=refund_amount,
+        reason=req.reason
+    )
 
     return {
         "status": "refunded",

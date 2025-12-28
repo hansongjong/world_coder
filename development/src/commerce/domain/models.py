@@ -177,3 +177,90 @@ class Payment(Base):
     processed_by = Column(Integer, ForeignKey('com_users.id'), nullable=True)  # 결제 처리한 직원
 
     order = relationship("Order", back_populates="payment")
+
+
+# --- 4. TgMain Integration (연동) ---
+class ExpectedDeliveryStatus(str, enum.Enum):
+    PENDING = "pending"       # 입고 대기
+    RECEIVED = "received"     # 입고 완료
+    PARTIAL = "partial"       # 부분 입고
+    CANCELLED = "cancelled"   # 취소됨
+
+
+class ExpectedDelivery(Base):
+    """입고 예정 (TgMain 발주서 수신)"""
+    __tablename__ = 'expected_deliveries'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    store_id = Column(Integer, ForeignKey('com_stores.id'), nullable=False)
+    po_number = Column(String(50), unique=True, index=True)  # TgMain 발주번호
+    vendor_id = Column(Integer, nullable=True)
+    vendor_name = Column(String(100))
+    expected_date = Column(DateTime, nullable=True)
+    status = Column(String(20), default=ExpectedDeliveryStatus.PENDING)
+    total_amount = Column(Integer, default=0)
+    notes = Column(Text, nullable=True)
+
+    received_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    items = relationship("ExpectedDeliveryItem", back_populates="delivery")
+
+
+class ExpectedDeliveryItem(Base):
+    """입고 예정 품목"""
+    __tablename__ = 'expected_delivery_items'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    delivery_id = Column(Integer, ForeignKey('expected_deliveries.id'), nullable=False)
+    item_code = Column(String(50))
+    item_name = Column(String(100))
+    quantity = Column(Integer, default=0)
+    unit = Column(String(10), default="EA")
+    unit_price = Column(Integer, default=0)
+    received_qty = Column(Integer, default=0)
+
+    delivery = relationship("ExpectedDelivery", back_populates="items")
+
+
+class SyncDirection(str, enum.Enum):
+    INBOUND = "IN"    # TgMain → World
+    OUTBOUND = "OUT"  # World → TgMain
+
+
+class SyncLog(Base):
+    """연동 로그 (Idempotency 포함)"""
+    __tablename__ = 'sync_logs'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    idempotency_key = Column(String(100), unique=True, index=True)
+    direction = Column(String(10))  # IN, OUT
+    event_type = Column(String(50))  # ORDER_PAID, STOCK_LOW, PURCHASE_ORDER 등
+    endpoint = Column(String(255), nullable=True)
+    payload = Column(Text, nullable=True)  # JSON string
+    response = Column(Text, nullable=True)  # JSON string
+    status = Column(String(20), default="PENDING")  # PENDING, SUCCESS, FAILED, RETRYING
+    retry_count = Column(Integer, default=0)
+    error_message = Column(Text, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    processed_at = Column(DateTime, nullable=True)
+
+
+class Vendor(Base):
+    """거래처 (TgMain에서 동기화)"""
+    __tablename__ = 'vendors'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    store_id = Column(Integer, ForeignKey('com_stores.id'), nullable=False)
+    external_id = Column(Integer, nullable=True)  # TgMain vendor_id
+    name = Column(String(100), nullable=False)
+    contact_name = Column(String(50), nullable=True)
+    phone = Column(String(20), nullable=True)
+    email = Column(String(100), nullable=True)
+    address = Column(String(255), nullable=True)
+    is_active = Column(Boolean, default=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())

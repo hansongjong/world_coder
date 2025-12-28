@@ -1,10 +1,11 @@
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
 from src.database.engine import get_db
 from src.commerce.domain.models_gap_v2 import InventoryItem
+from src.commerce.services.webhook_sender import webhook_sender
 
 router = APIRouter(prefix="/inventory", tags=["Commerce: Inventory (SCM)"])
 
@@ -14,10 +15,14 @@ class StockUpdate(BaseModel):
     change_qty: float # +입고, -사용
 
 @router.post("/update")
-def update_stock(req: StockUpdate, db: Session = Depends(get_db)):
+async def update_stock(
+    req: StockUpdate,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
     """[SCM] 재고 수량 변경 (입고/사용)"""
     item = db.query(InventoryItem).filter_by(store_id=req.store_id, item_name=req.item_name).first()
-    
+
     if not item:
         # 신규 자재 등록
         item = InventoryItem(
@@ -28,17 +33,25 @@ def update_stock(req: StockUpdate, db: Session = Depends(get_db)):
             last_updated=datetime.now()
         )
         db.add(item)
-    
+
     item.current_qty += req.change_qty
     item.last_updated = datetime.now()
     db.commit()
-    
-    # 안전재고 체크
+
+    # 안전재고 체크 및 STOCK_LOW 이벤트 발송
     alert = False
     if item.current_qty < item.safety_stock:
         alert = True
-        # 실제로는 여기서 발주 알림(Notification) 로직 수행
-        
+        # TgMain에 STOCK_LOW Webhook 발송 (백그라운드)
+        background_tasks.add_task(
+            webhook_sender.send_stock_low,
+            store_id=req.store_id,
+            item_code=f"INV{item.id:05d}",
+            item_name=item.item_name,
+            current_qty=int(item.current_qty),
+            min_qty=int(item.safety_stock)
+        )
+
     return {
         "item": item.item_name,
         "current_qty": item.current_qty,
