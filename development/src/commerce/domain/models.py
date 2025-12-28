@@ -6,9 +6,10 @@ from src.core.database.v3_schema import Base  # 기존 Base 재사용
 
 # --- Enums ---
 class UserRole(str, enum.Enum):
-    ADMIN = "admin"
-    OWNER = "owner" # 점주
-    STAFF = "staff" # 직원
+    ADMIN = "admin"      # 시스템 관리자
+    OWNER = "owner"      # 점주 (매장 소유자)
+    MANAGER = "manager"  # 매니저 (일부 관리 권한)
+    STAFF = "staff"      # 직원 (주문/결제만)
 
 class OrderStatus(str, enum.Enum):
     PENDING = "pending"   # 주문 접수 중
@@ -21,30 +22,90 @@ class OrderStatus(str, enum.Enum):
 # --- 1. Auth & Member (인증/회원) ---
 class CommerceUser(Base):
     __tablename__ = 'com_users'
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     username = Column(String(50), unique=True, index=True)
     password_hash = Column(String(255))
-    role = Column(String(20), default=UserRole.STAFF)
-    store_id = Column(Integer, ForeignKey('com_stores.id'), nullable=True)
-    
+    email = Column(String(100), nullable=True)
+    phone = Column(String(20), nullable=True)
+    is_active = Column(Boolean, default=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    
-    store = relationship("Store", back_populates="staff")
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # 다대다 관계: 한 유저가 여러 매장에 접근 가능
+    store_accesses = relationship("UserStoreAccess", back_populates="user")
+
+
+# --- User-Store Access (다대다 연결 + Role) ---
+class UserStoreAccess(Base):
+    """유저-매장 연결 테이블 (다대다 + 역할)"""
+    __tablename__ = 'com_user_store_access'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('com_users.id'), nullable=False)
+    store_id = Column(Integer, ForeignKey('com_stores.id'), nullable=False)
+    role = Column(String(20), default=UserRole.STAFF)  # OWNER, MANAGER, STAFF
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_by = Column(Integer, nullable=True)  # 누가 이 권한을 부여했는지
+
+    user = relationship("CommerceUser", back_populates="store_accesses")
+    store = relationship("Store", back_populates="user_accesses")
+
+# --- Business Types ---
+class BizType(str, enum.Enum):
+    CAFE = "cafe"
+    RESTAURANT = "restaurant"
+    RETAIL = "retail"
+    BEAUTY = "beauty"
+    GYM = "gym"
+    HOSPITAL = "hospital"
+    OTHER = "other"
 
 # --- 2. Product & Store (상품/매장) ---
 class Store(Base):
     __tablename__ = 'com_stores'
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(100))
     address = Column(String(255))
     biz_number = Column(String(20)) # 사업자 번호
+    biz_type = Column(String(20), default=BizType.CAFE)  # Business type
     is_active = Column(Boolean, default=True)
-    
-    staff = relationship("CommerceUser", back_populates="store")
+
+    user_accesses = relationship("UserStoreAccess", back_populates="store")
     categories = relationship("Category", back_populates="store")
     orders = relationship("Order", back_populates="store")
+    config = relationship("StoreConfig", uselist=False, back_populates="store")
+
+# --- Store Configuration (Module Picking) ---
+class StoreConfig(Base):
+    __tablename__ = 'com_store_configs'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    store_id = Column(Integer, ForeignKey('com_stores.id'), unique=True)
+
+    # Module flags
+    mod_payment = Column(Boolean, default=True)
+    mod_queue = Column(Boolean, default=False)
+    mod_reservation = Column(Boolean, default=False)
+    mod_inventory = Column(Boolean, default=False)
+    mod_crm = Column(Boolean, default=False)
+    mod_delivery = Column(Boolean, default=False)
+    mod_iot = Column(Boolean, default=False)
+    mod_subscription = Column(Boolean, default=False)
+    mod_invoice = Column(Boolean, default=False)
+
+    # UI Settings
+    ui_mode = Column(String(30), default="KIOSK_LITE")  # KIOSK_LITE, TABLE_MANAGER, ADMIN_DASHBOARD
+    table_count = Column(Integer, default=0)
+    deposit_amount = Column(Integer, default=0)
+
+    # JSON for additional settings
+    extra_settings = Column(Text, nullable=True)  # JSON string
+
+    store = relationship("Store", back_populates="config")
 
 class Category(Base):
     __tablename__ = 'com_categories'
@@ -73,14 +134,19 @@ class Product(Base):
 # --- 3. Order & Payment (주문/결제) ---
 class Order(Base):
     __tablename__ = 'com_orders'
-    
-    id = Column(String(50), primary_key=True) # UUID (Order Number)
+
+    id = Column(String(50), primary_key=True)  # UUID (Order Number)
     store_id = Column(Integer, ForeignKey('com_stores.id'))
-    table_no = Column(String(10), nullable=True) # 키오스크/테이블 번호
+    table_no = Column(String(10), nullable=True)  # 키오스크/테이블 번호
     total_amount = Column(Integer)
     status = Column(String(20), default=OrderStatus.PENDING)
+
+    # Audit fields
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    
+    created_by = Column(Integer, ForeignKey('com_users.id'), nullable=True)  # 주문 생성한 직원
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    updated_by = Column(Integer, nullable=True)  # 마지막 수정한 직원
+
     store = relationship("Store", back_populates="orders")
     items = relationship("OrderItem", back_populates="order")
     payment = relationship("Payment", uselist=False, back_populates="order")
@@ -99,12 +165,15 @@ class OrderItem(Base):
 
 class Payment(Base):
     __tablename__ = 'com_payments'
-    
-    id = Column(String(50), primary_key=True) # Transaction ID
+
+    id = Column(String(50), primary_key=True)  # Transaction ID
     order_id = Column(String(50), ForeignKey('com_orders.id'))
-    pg_provider = Column(String(20)) # kakao, toss, naver
+    pg_provider = Column(String(20))  # kakao, toss, naver, card, cash
     amount = Column(Integer)
-    status = Column(String(20)) # PAID, REFUNDED
+    status = Column(String(20))  # PAID, REFUNDED
+
+    # Audit fields
     paid_at = Column(DateTime(timezone=True), server_default=func.now())
-    
+    processed_by = Column(Integer, ForeignKey('com_users.id'), nullable=True)  # 결제 처리한 직원
+
     order = relationship("Order", back_populates="payment")

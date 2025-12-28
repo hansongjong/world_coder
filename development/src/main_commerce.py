@@ -10,7 +10,7 @@ sys.path.append(str(BASE_DIR))
 TEMPLATES_DIR = BASE_DIR / "src" / "templates"
 
 # API Modules
-from src.commerce.api import products, orders, booking, iot, queue, crm, hr, delivery, membership, inventory, stats
+from src.commerce.api import products, orders, booking, iot, queue, crm, hr, delivery, membership, inventory, stats, store_config
 from src.commerce.auth import routes as auth_routes
 
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
@@ -38,6 +38,7 @@ app.include_router(delivery.router)
 app.include_router(membership.router)
 app.include_router(inventory.router)
 app.include_router(stats.router)
+app.include_router(store_config.router)
 
 # [Web Views]
 @app.get("/")

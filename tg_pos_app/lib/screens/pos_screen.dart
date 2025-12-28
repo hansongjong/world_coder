@@ -3,10 +3,20 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../services/api_service.dart';
 import '../providers/cart_provider.dart';
+import '../providers/store_config_provider.dart';
 import '../widgets/payment_modal.dart';
 import '../widgets/receipt_dialog.dart';
+import '../l10n/app_localizations.dart';
 import 'reservation_screen.dart';
 import 'login_screen.dart';
+import 'product_management_screen.dart';
+import 'order_history_screen.dart';
+import 'sales_report_screen.dart';
+import 'table_map_screen.dart';
+import 'queue_screen.dart';
+import 'inventory_screen.dart';
+import 'store_settings_screen.dart';
+import 'subscription_screen.dart';
 
 class PosScreen extends StatefulWidget {
   final int storeId;
@@ -62,7 +72,7 @@ class _PosScreenState extends State<PosScreen> {
     final cart = context.read<CartProvider>();
     if (cart.items.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cart is empty')),
+        const SnackBar(content: Text('장바구니가 비었습니다')),
       );
       return;
     }
@@ -70,24 +80,35 @@ class _PosScreenState extends State<PosScreen> {
       context: context,
       builder: (_) => PaymentModal(
         total: cart.totalAmount,
-        onDone: (method, received, change) => _placeOrder(method, received, change),
+        onDone: (method, received, change, {discountAmount, discountType}) =>
+            _placeOrder(method, received, change,
+                discountAmount: discountAmount, discountType: discountType),
       ),
     );
   }
 
-  Future<void> _placeOrder(String method, int received, int change) async {
+  Future<void> _placeOrder(String method, int received, int change,
+      {int? discountAmount, String? discountType}) async {
     final cart = context.read<CartProvider>();
     try {
-      await ApiService().placeOrder({
+      final Map<String, dynamic> orderData = {
         "store_id": widget.storeId,
         "table_no": "POS",
         "items": cart.items
             .map((e) => {"product_id": e.productId, "quantity": e.quantity})
             .toList(),
-      });
+      };
+
+      // Add discount info if present
+      if (discountAmount != null && discountAmount > 0) {
+        orderData["discount_amount"] = discountAmount;
+        orderData["discount_type"] = discountType ?? "amount";
+      }
+
+      await ApiService().placeOrder(orderData);
 
       final items = List.from(cart.items);
-      final total = cart.totalAmount;
+      final total = cart.totalAmount - (discountAmount ?? 0);
       cart.clear();
 
       if (mounted) {
@@ -106,7 +127,7 @@ class _PosScreenState extends State<PosScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Order failed: $e')),
+          SnackBar(content: Text('주문 실패: $e')),
         );
       }
     }
@@ -123,30 +144,128 @@ class _PosScreenState extends State<PosScreen> {
   @override
   Widget build(BuildContext context) {
     final isWide = MediaQuery.of(context).size.width > 800;
+    final config = context.watch<StoreConfigProvider>();
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('TG-POS'),
+        title: Text(config.storeName.isNotEmpty ? config.storeName : 'TG-POS'),
         actions: [
+          // Refresh Menu
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadMenu,
-            tooltip: 'Refresh Menu',
+            tooltip: l10n.get('refresh'),
           ),
+          // Table Map (Restaurant mode)
+          if (config.isRestaurant || config.uiMode == 'TABLE_MANAGER')
+            IconButton(
+              icon: const Icon(Icons.table_restaurant),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => TableMapScreen(storeId: widget.storeId),
+                ),
+              ),
+              tooltip: l10n.get('table_map'),
+            ),
+          // Queue (Cafe/Hospital mode)
+          if (config.hasQueue)
+            IconButton(
+              icon: const Icon(Icons.queue),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => QueueScreen(storeId: widget.storeId),
+                ),
+              ),
+              tooltip: l10n.get('queue'),
+            ),
+          // Inventory (Retail mode or enabled)
+          if (config.hasInventory)
+            IconButton(
+              icon: const Icon(Icons.inventory),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => InventoryScreen(storeId: widget.storeId),
+                ),
+              ),
+              tooltip: l10n.get('inventory'),
+            ),
+          // Subscription (GYM mode or enabled)
+          if (config.hasSubscription)
+            IconButton(
+              icon: const Icon(Icons.card_membership),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SubscriptionScreen(storeId: widget.storeId),
+                ),
+              ),
+              tooltip: l10n.get('subscription'),
+            ),
+          // Product Management
           IconButton(
-            icon: const Icon(Icons.calendar_today),
+            icon: const Icon(Icons.inventory_2),
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => ReservationScreen(storeId: widget.storeId),
+                builder: (_) => ProductManagementScreen(storeId: widget.storeId),
+              ),
+            ).then((_) => _loadMenu()),
+            tooltip: l10n.get('menu'),
+          ),
+          // Order History
+          IconButton(
+            icon: const Icon(Icons.history),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => OrderHistoryScreen(storeId: widget.storeId),
               ),
             ),
-            tooltip: 'Reservations',
+            tooltip: l10n.get('order'),
           ),
+          // Sales Report
+          IconButton(
+            icon: const Icon(Icons.bar_chart),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => SalesReportScreen(storeId: widget.storeId),
+              ),
+            ),
+            tooltip: l10n.get('reports'),
+          ),
+          // Reservations (if enabled)
+          if (config.hasReservation)
+            IconButton(
+              icon: const Icon(Icons.calendar_today),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ReservationScreen(storeId: widget.storeId),
+                ),
+              ),
+              tooltip: l10n.get('reservation'),
+            ),
+          // Store Settings
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => StoreSettingsScreen(storeId: widget.storeId),
+              ),
+            ).then((_) => _loadMenu()),
+            tooltip: l10n.get('settings'),
+          ),
+          // Logout
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: _logout,
-            tooltip: 'Logout',
+            tooltip: l10n.get('logout'),
           ),
         ],
       ),
@@ -301,12 +420,13 @@ class _PosScreenState extends State<PosScreen> {
   }
 
   Widget _buildCartPanel() {
+    final l10n = AppLocalizations.of(context);
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(-2, 0),
           ),
@@ -318,13 +438,13 @@ class _PosScreenState extends State<PosScreen> {
           Container(
             padding: const EdgeInsets.all(15),
             color: const Color(0xFF1E293B),
-            child: const Row(
+            child: Row(
               children: [
-                Icon(Icons.shopping_cart, color: Colors.white),
-                SizedBox(width: 10),
+                const Icon(Icons.shopping_cart, color: Colors.white),
+                const SizedBox(width: 10),
                 Text(
-                  'ORDER LIST',
-                  style: TextStyle(
+                  l10n.get('order_list'),
+                  style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
@@ -345,7 +465,7 @@ class _PosScreenState extends State<PosScreen> {
                         Icon(Icons.shopping_cart_outlined,
                             size: 60, color: Colors.grey[300]),
                         const SizedBox(height: 10),
-                        Text('Cart is empty',
+                        Text(l10n.get('empty_cart'),
                             style: TextStyle(color: Colors.grey[500])),
                       ],
                     ),
@@ -396,9 +516,9 @@ class _PosScreenState extends State<PosScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'Total',
-                        style: TextStyle(
+                      Text(
+                        l10n.get('total'),
+                        style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
@@ -419,7 +539,7 @@ class _PosScreenState extends State<PosScreen> {
                       Expanded(
                         child: OutlinedButton(
                           onPressed: cart.items.isEmpty ? null : cart.clear,
-                          child: const Text('CLEAR'),
+                          child: Text(l10n.get('clear_cart')),
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -432,9 +552,9 @@ class _PosScreenState extends State<PosScreen> {
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 15),
                           ),
-                          child: const Text(
-                            'PAY',
-                            style: TextStyle(
+                          child: Text(
+                            l10n.get('pay'),
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                             ),
@@ -453,6 +573,7 @@ class _PosScreenState extends State<PosScreen> {
   }
 
   Widget _buildMobileCartBar() {
+    final l10n = AppLocalizations.of(context);
     return Consumer<CartProvider>(
       builder: (context, cart, _) => Container(
         padding: const EdgeInsets.all(15),
@@ -460,7 +581,7 @@ class _PosScreenState extends State<PosScreen> {
           color: Colors.white,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 10,
               offset: const Offset(0, -2),
             ),
@@ -494,9 +615,9 @@ class _PosScreenState extends State<PosScreen> {
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
               ),
-              child: const Text(
-                'PAY',
-                style: TextStyle(fontWeight: FontWeight.bold),
+              child: Text(
+                l10n.get('pay'),
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
           ],

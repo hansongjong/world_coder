@@ -16,7 +16,19 @@
       "Bash(flutter run:*)",
       "Bash(flutter create:*)",
       "Bash(flutter clean:*)",
-      "Bash(flutter pub get:*)"
+      "Bash(flutter pub get:*)",
+      "Bash(flutter analyze:*)",
+      "Bash(taskkill:*)",
+      "Bash(cat:*)",
+      "Bash(grep:*)",
+      "Bash(python scripts/seed_full_test.py:*)",
+      "Bash(flutter devices:*)",
+      "Bash(ls:*)",
+      "Bash(python:*)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJib3NzIiwidXNlcl9pZCI6NSwic3RvcmVfaWQiOjIsInJvbGUiOiJvd25lciIsImV4cCI6MTc2Njc1NDI2NX0.hfYomnWop_fMobNsv8qknVaKhiTnLZo3TOo9obQCGdQ\")",
+      "Bash(__NEW_LINE__ echo \"=== 오늘 \\(12/26\\) ===\")",
+      "Bash(__NEW_LINE__ echo -e \"\\\\n\\\\n=== 이번 주 \\(12/23~12/26\\) ===\")",
+      "Bash(__NEW_LINE__ echo -e \"\\\\n\\\\n=== 이번 달 \\(12/1~12/26\\) ===\")"
     ]
   }
 }
